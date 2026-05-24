@@ -12,9 +12,9 @@ void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
 	RECT windowRect;
 	GetWindowRect(hWnd, &windowRect);
 
-	POINT lastMousePosition{ 
-		windowRect.left + static_cast<LONG>(g_framework->GetWindowWidth() / 2), 
-		windowRect.top + static_cast<LONG>(g_framework->GetWindowWidth() / 2) };
+	POINT lastMousePosition{
+		windowRect.left + static_cast<LONG>(g_framework->GetWindowWidth() / 2),
+		windowRect.top + static_cast<LONG>(g_framework->GetWindowHeight() / 2) };
 	POINT mousePosition;
 	GetCursorPos(&mousePosition);
 
@@ -22,12 +22,21 @@ void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
 	float dy = XMConvertToRadians(0.15f * static_cast<FLOAT>(lastMousePosition.y - mousePosition.y));
 
 	if (m_camera) {
+		auto springCamera = dynamic_pointer_cast<SpringArmCamera>(m_camera);
+
+		// 1인칭 모드 판별 (ArmLength가 0에 근접한 경우)
+		if (springCamera && springCamera->GetArmLength() <= 1.0f) {
+			// 플레어어 캐릭터 모델 자체를 마우스 X축 회전(dx)만큼 Y축으로 회전시킵니다.
+			m_player->Rotate(0.0f, XMConvertToDegrees(-dx), 0.0f);
+			m_camera->RotateYaw(dx);
+		}
+
 		m_camera->RotateYaw(dx);
 		m_camera->RotatePitch(dy);
 	}
 	SetCursorPos(lastMousePosition.x, lastMousePosition.y);
 
-	m_player->MouseEvent(timeElapsed);
+	m_player->MouseEvent(timeElapsed, 0);
 }
 
 void Scene::KeyboardEvent(FLOAT timeElapsed)
@@ -84,6 +93,15 @@ void Scene::BuildObjects(const ComPtr<ID3D12Device>& device,
 	m_player->SetCamera(m_camera);
 }
 
+void Scene::ReleaseObjects()
+{
+	m_objects.clear();
+	m_player.reset();
+	m_camera.reset();
+	m_shader.reset();
+	m_cube.reset();
+}
+
 void Scene::ReleaseUploadBuffer()
 {
 	m_cube->ReleaseUploadBuffer();
@@ -96,4 +114,16 @@ void Scene::MouseEvent(UINT message, LPARAM lParam)
 
 void Scene::KeyboardEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+}
+
+void Scene::MouseEvent(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	if (message == WM_MOUSEWHEEL)
+	{
+		// 120 단위로 값이 들어옴 (위로 굴리면 양수, 아래로 굴리면 음수)
+		short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+		// 플레이어에게 휠 값을 전달 (함수 시그니처 변경 필요)
+		m_player->MouseEvent(0.0f, wheelDelta);
+	}
 }

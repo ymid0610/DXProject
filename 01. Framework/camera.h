@@ -53,3 +53,29 @@ private:
 	FLOAT m_phi;
 	FLOAT m_theta;
 };
+
+class SpringArmCamera : public Camera
+{
+public:
+	SpringArmCamera();
+	~SpringArmCamera() = default;
+
+	void Update(FLOAT timeElapsed) override;
+	void UpdateEye(XMFLOAT3 position) override;
+
+	void RotatePitch(FLOAT radian) override;
+	void RotateYaw(FLOAT radian) override;
+
+	void SetArmLength(FLOAT length);
+	void AddArmLength(FLOAT length);
+	FLOAT GetArmLength() const { return m_targetArmLength; }
+
+private:
+	FLOAT m_currentArmLength; // 현재 적용중인 길이 (보간용)
+	FLOAT m_targetArmLength;  // 목표 길이
+
+	FLOAT m_phi;   // Pitch (위/아래)
+	FLOAT m_theta; // Yaw (좌/우)
+
+	XMFLOAT3 m_offset;  // 캐릭터의 발바닥이 아닌 상체(머리/어깨)를 찍기 위한 오프셋
+};

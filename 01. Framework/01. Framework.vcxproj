@@ -139,6 +139,7 @@
     <ClInclude Include="object.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="scene.h" />
+    <ClInclude Include="scenemanager.h" />
     <ClInclude Include="settings.h" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="stdafx.h" />
@@ -155,7 +156,9 @@
     <ClCompile Include="object.cpp" />
     <ClCompile Include="player.cpp" />
     <ClCompile Include="scene.cpp" />
+    <ClCompile Include="scenemanager.cpp" />
     <ClCompile Include="shader.cpp" />
+    <ClCompile Include="startscene.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="timer.cpp" />
   </ItemGroup>

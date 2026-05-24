@@ -1,7 +1,7 @@
 #pragma once
 #include "stdafx.h"
 #include "timer.h"
-#include "scene.h"
+#include "scenemanager.h"
 
 class GameFramework
 {
@@ -18,6 +18,7 @@ public:
 	void KeyboardEvent(FLOAT timeElapsed);
 	void MouseEvent(UINT message, LPARAM lParam);
 	void KeyboardEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+	void MouseEvent(UINT message, WPARAM wParam, LPARAM lParam);
 
 	void SetActive(BOOL isActive);
 
@@ -78,6 +79,6 @@ private:
 
 	Timer								m_timer;
 
-	unique_ptr<Scene>					m_scene;
+	unique_ptr<SceneManager> 			m_scene;
 };
 

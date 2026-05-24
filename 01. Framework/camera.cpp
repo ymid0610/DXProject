@@ -52,6 +52,8 @@ void Camera::UpdateBasis()
 	m_v = Utiles::Vector3::Normalize(Utiles::Vector3::Cross(m_n, m_u));
 }
 
+//
+//////////////////////////////////////////////////////////////////////////////
 ThirdPersonCamera::ThirdPersonCamera() : Camera{}, m_radius{Settings::DefaultCameraRadius},
 	m_phi{Settings::DefaultCameraPitch}, m_theta{Settings::DefaultCameraYaw}
 {
@@ -84,4 +86,66 @@ void ThirdPersonCamera::RotatePitch(FLOAT radian)
 void ThirdPersonCamera::RotateYaw(FLOAT radian)
 {
 	m_theta += radian;
+}
+
+//
+///////////////////////////////////////////////////////////////////////////////
+
+SpringArmCamera::SpringArmCamera() : Camera{},
+m_targetArmLength{ Settings::DefaultCameraRadius },
+m_currentArmLength{ Settings::DefaultCameraRadius },
+m_phi{ Settings::DefaultCameraPitch },
+m_theta{ Settings::DefaultCameraYaw },
+m_offset{ 0.0f, 0.f, 0.0f } // 캐릭터 중심점 오프셋 (예: Y축으로 1.5만큼 위를 바라봄)
+{
+}
+
+void SpringArmCamera::Update(FLOAT timeElapsed)
+{
+	// 목표 길이를 향해 현재 길이를 부드럽게 보간(Lerp)합니다.
+	m_currentArmLength += (m_targetArmLength - m_currentArmLength) * 10.0f * timeElapsed;
+}
+
+void SpringArmCamera::UpdateEye(XMFLOAT3 targetPosition)
+{
+	// 바라보는 실제 지점 (캐릭터 위치 + 오프셋)
+	XMFLOAT3 lookAt = Utiles::Vector3::Add(targetPosition, m_offset);
+
+	// 구면 좌표계로 카메라 위치 오프셋 계산 (타겟 기준)
+	XMFLOAT3 offset{
+		m_currentArmLength * sin(m_phi) * cos(m_theta),
+		m_currentArmLength * cos(m_phi),
+		m_currentArmLength * sin(m_phi) * sin(m_theta)
+	};
+
+	// 눈 위치 = 타겟 + 카메라 오프셋
+	m_eye = Utiles::Vector3::Add(lookAt, offset);
+	m_at = lookAt; // 카메라는 항상 타겟을 바라봄
+
+	// 여기서 레이캐스트(Raycast)를 날려 지형이나 벽과 충돌을 검사하고
+	// 충돌 시 m_eye 위치를 벽 앞으로 당겨오는 코드를 추가하면 
+	// 완벽한 충돌 방지 스프링 암이 됩니다.
+
+	UpdateBasis();
+}
+
+void SpringArmCamera::RotatePitch(FLOAT radian)
+{
+	m_phi += radian;
+	m_phi = clamp(m_phi, Settings::CameraMinPitch, Settings::CameraMaxPitch);
+}
+
+void SpringArmCamera::RotateYaw(FLOAT radian)
+{
+	m_theta += radian;
+}
+
+void SpringArmCamera::SetArmLength(FLOAT length)
+{
+	m_targetArmLength = std::clamp(length, 0.1f, 15.0f);
+}
+
+void SpringArmCamera::AddArmLength(FLOAT length)
+{
+	SetArmLength(m_targetArmLength + length);
 }

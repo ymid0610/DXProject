@@ -8,8 +8,9 @@ public:
 	Player();
 	~Player() = default;
 
-	void MouseEvent(FLOAT timeElapsed);
+	void MouseEvent(FLOAT timeElapsed, short wheelDelta = 0);
 	void KeyboardEvent(FLOAT timeElapsed);
+
 	virtual void Update(FLOAT timeElapsed) override;
 
 	void SetCamera(const shared_ptr<Camera>& camera);

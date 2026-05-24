@@ -4,10 +4,6 @@ Player::Player() : GameObject(), m_speed{Settings::PlayerSpeed}
 {
 }
 
-void Player::MouseEvent(FLOAT timeElapsed)
-{
-}
-
 void Player::KeyboardEvent(FLOAT timeElapsed)
 {
 	XMFLOAT3 front{ m_camera->GetN() }; front.y = 0.f; 
@@ -55,9 +51,30 @@ void Player::KeyboardEvent(FLOAT timeElapsed)
 	}
 }
 
+void Player::MouseEvent(FLOAT timeElapsed, short wheelDelta)
+{
+	if (wheelDelta != 0 && m_camera)
+	{
+		// 캐스팅해서 스프링 암 카메라인지 확인
+		auto springArm = dynamic_pointer_cast<SpringArmCamera>(m_camera);
+		if (springArm)
+		{
+			// 원하는 감도(Sensivity)로 조절: 120이 들어오면 -1.0f 또는 1.0f 씩 조절
+			float zoomSpeed = 2.0f; // 휠 한번에 변하는 길이
+			if (wheelDelta > 0) {
+				springArm->AddArmLength(-zoomSpeed); // 줌 인 (거리 짧아짐)
+			}
+			else {
+				springArm->AddArmLength(zoomSpeed); // 줌 아웃 (거리 멀어짐)
+			}
+		}
+	}
+}
+
 
 void Player::Update(FLOAT timeElapsed)
 {
+	if (m_camera) m_camera->Update(timeElapsed);
 	if (m_camera) m_camera->UpdateEye(GetPosition());
 }
 
