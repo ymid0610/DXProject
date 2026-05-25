@@ -7,6 +7,8 @@ Camera::Camera() : m_eye{0.f, 0.f, 0.f}, m_at{0.f, 0.f, 1.f}, m_up{0.f, 1.f, 0.f
 	XMStoreFloat4x4(&m_projectionMatrix, XMMatrixIdentity());
 }
 
+// 업데이트 함수
+
 void Camera::UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& commandList)
 {
 	XMStoreFloat4x4(&m_viewMatrix, XMMatrixLookAtLH(XMLoadFloat3(&m_eye), XMLoadFloat3(&m_at), XMLoadFloat3(&m_up)));
@@ -18,31 +20,6 @@ void Camera::UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& comma
 	XMFLOAT4X4 projectionMatrix;
 	XMStoreFloat4x4(&projectionMatrix, XMMatrixTranspose(XMLoadFloat4x4(&m_projectionMatrix)));
 	commandList->SetGraphicsRoot32BitConstants(1, 16, &projectionMatrix, 16);
-}
-
-void Camera::SetLens(FLOAT fovy, FLOAT aspect, FLOAT minZ, FLOAT maxZ)
-{
-	XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(fovy, aspect, minZ, maxZ));
-}
-
-XMFLOAT3 Camera::GetEye() const
-{
-	return m_eye;
-}
-
-XMFLOAT3 Camera::GetU() const
-{
-	return m_u;
-}
-
-XMFLOAT3 Camera::GetV() const
-{
-	return m_v;
-}
-
-XMFLOAT3 Camera::GetN() const
-{
-	return m_n;
 }
 
 void Camera::UpdateBasis()
@@ -148,4 +125,31 @@ void SpringArmCamera::SetArmLength(FLOAT length)
 void SpringArmCamera::AddArmLength(FLOAT length)
 {
 	SetArmLength(m_targetArmLength + length);
+}
+
+XMFLOAT3 SpringArmCamera::GetDirectionToCamera() const
+{
+	XMFLOAT3 dir{
+		sin(m_phi) * cos(m_theta),
+		cos(m_phi),
+		sin(m_phi) * sin(m_theta)
+	};
+	return Utiles::Vector3::Normalize(dir);
+}
+
+// 충돌(Raycast) 거리에 맞춰 카메라 강제 이동
+void SpringArmCamera::SetCollisionDistance(float distance)
+{
+	// 벽에 너무 붙으면 시야가 뚫릴 수 있으므로 0.2f 정도 여백(margin)을 줍니다.
+	float actualDist = max(0.0f, distance - 0.2f);
+
+	XMFLOAT3 offset{
+		actualDist * sin(m_phi) * cos(m_theta),
+		actualDist * cos(m_phi),
+		actualDist * sin(m_phi) * sin(m_theta)
+	};
+
+	// 타겟 지점을 기준으로 충돌 거리만큼만 뒤로 물리침
+	m_eye = Utiles::Vector3::Add(m_at, offset);
+	UpdateBasis(); // 방향 갱신
 }

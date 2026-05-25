@@ -46,6 +46,12 @@
     <Filter Include="소스 파일\Mesh">
       <UniqueIdentifier>{b3684411-02f4-4fb6-9d1b-ad289f60b8b9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Collider">
+      <UniqueIdentifier>{dab5dfce-4968-4188-b4bf-8e6b47b3589b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Collider">
+      <UniqueIdentifier>{e39bb8db-c4fe-464b-aef0-c695863968de}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="01. Framework.h">
@@ -93,6 +99,15 @@
     <ClInclude Include="utiles.h">
       <Filter>헤더 파일\Framework</Filter>
     </ClInclude>
+    <ClInclude Include="scenemanager.h">
+      <Filter>헤더 파일\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="collider.h">
+      <Filter>헤더 파일\Collider</Filter>
+    </ClInclude>
+    <ClInclude Include="collisionmanager.h">
+      <Filter>헤더 파일\Collider</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="01. Framework.cpp">
@@ -124,6 +139,18 @@
     </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>소스 파일\Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="scenemanager.cpp">
+      <Filter>소스 파일\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="startscene.cpp">
+      <Filter>소스 파일\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="collider.cpp">
+      <Filter>소스 파일\Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="collisionmanager.cpp">
+      <Filter>소스 파일\Collider</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

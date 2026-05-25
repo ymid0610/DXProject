@@ -1,9 +1,27 @@
-#include "scene.h"
+ï»¿#include "scene.h"
 #include "stdafx.h"
 #include "framework.h"
+#include "collisionmanager.h"
 
 Scene::Scene()
 {
+}
+
+// ì—…ë°ì´íŠ¸	í•¨ìˆ˜
+void Scene::Update(FLOAT timeElapsed)
+{
+	if (m_player) m_player->Update(timeElapsed);
+
+	if (!m_objects.empty()) {
+		for (auto& object : m_objects) {
+			object->Update(timeElapsed);
+		}
+	}
+
+	if (m_collisionManager)
+	{
+		m_collisionManager->Update(m_player, timeElapsed);
+	}
 }
 
 void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
@@ -24,9 +42,9 @@ void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
 	if (m_camera) {
 		auto springCamera = dynamic_pointer_cast<SpringArmCamera>(m_camera);
 
-		// 1ÀÎÄª ¸ðµå ÆÇº° (ArmLength°¡ 0¿¡ ±ÙÁ¢ÇÑ °æ¿ì)
+		// 1ì¸ì¹­ ëª¨ë“œ íŒë³„ (ArmLengthê°€ 0ì— ê·¼ì ‘í•œ ê²½ìš°)
 		if (springCamera && springCamera->GetArmLength() <= 1.0f) {
-			// ÇÃ·¹¾î¾î Ä³¸¯ÅÍ ¸ðµ¨ ÀÚÃ¼¸¦ ¸¶¿ì½º XÃà È¸Àü(dx)¸¸Å­ YÃàÀ¸·Î È¸Àü½ÃÅµ´Ï´Ù.
+			// í”Œë ˆì–´ì–´ ìºë¦­í„° ëª¨ë¸ ìžì²´ë¥¼ ë§ˆìš°ìŠ¤ Xì¶• íšŒì „(dx)ë§Œí¼ Yì¶•ìœ¼ë¡œ íšŒì „ì‹œí‚µë‹ˆë‹¤.
 			m_player->Rotate(0.0f, XMConvertToDegrees(-dx), 0.0f);
 			m_camera->RotateYaw(dx);
 		}
@@ -41,16 +59,9 @@ void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
 
 void Scene::KeyboardEvent(FLOAT timeElapsed)
 {
+	m_player->SetPreviousPosition(m_player->GetPosition());
+
 	m_player->KeyboardEvent(timeElapsed);
-}
-
-
-void Scene::Update(FLOAT timeElapsed)
-{
-	m_player->Update(timeElapsed);
-	for (auto& object : m_objects) {
-		object->Update(timeElapsed);
-	}
 }
 
 void Scene::Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
@@ -84,6 +95,8 @@ void Scene::BuildObjects(const ComPtr<ID3D12Device>& device,
 					static_cast<FLOAT>(y), 
 					static_cast<FLOAT>(z) });
 				m_objects.push_back(object);
+
+
 			}
 		}
 	}
@@ -120,10 +133,10 @@ void Scene::MouseEvent(UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (message == WM_MOUSEWHEEL)
 	{
-		// 120 ´ÜÀ§·Î °ªÀÌ µé¾î¿È (À§·Î ±¼¸®¸é ¾ç¼ö, ¾Æ·¡·Î ±¼¸®¸é À½¼ö)
+		// 120 ë‹¨ìœ„ë¡œ ê°’ì´ ë“¤ì–´ì˜´ (ìœ„ë¡œ êµ´ë¦¬ë©´ ì–‘ìˆ˜, ì•„ëž˜ë¡œ êµ´ë¦¬ë©´ ìŒìˆ˜)
 		short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
 
-		// ÇÃ·¹ÀÌ¾î¿¡°Ô ÈÙ °ªÀ» Àü´Þ (ÇÔ¼ö ½Ã±×´ÏÃ³ º¯°æ ÇÊ¿ä)
+		// í”Œë ˆì´ì–´ì—ê²Œ íœ  ê°’ì„ ì „ë‹¬ (í•¨ìˆ˜ ì‹œê·¸ë‹ˆì²˜ ë³€ê²½ í•„ìš”)
 		m_player->MouseEvent(0.0f, wheelDelta);
 	}
 }

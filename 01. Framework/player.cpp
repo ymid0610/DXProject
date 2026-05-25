@@ -4,6 +4,13 @@ Player::Player() : GameObject(), m_speed{Settings::PlayerSpeed}
 {
 }
 
+void Player::Update(FLOAT timeElapsed)
+{
+	if (m_camera) m_camera->Update(timeElapsed);
+	if (m_camera) m_camera->UpdateEye(GetPosition());
+	if (m_collider) m_collider->Update(GetWorldMatrix());
+}
+
 void Player::KeyboardEvent(FLOAT timeElapsed)
 {
 	XMFLOAT3 front{ m_camera->GetN() }; front.y = 0.f; 
@@ -69,16 +76,4 @@ void Player::MouseEvent(FLOAT timeElapsed, short wheelDelta)
 			}
 		}
 	}
-}
-
-
-void Player::Update(FLOAT timeElapsed)
-{
-	if (m_camera) m_camera->Update(timeElapsed);
-	if (m_camera) m_camera->UpdateEye(GetPosition());
-}
-
-void Player::SetCamera(const shared_ptr<Camera>& camera)
-{
-	m_camera = camera;
 }

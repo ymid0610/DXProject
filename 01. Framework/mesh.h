@@ -7,15 +7,24 @@ class Mesh abstract
 public:
 	Mesh() = default;
 	~Mesh() = default;
-
+	
 	virtual void Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const;
 	virtual void ReleaseUploadBuffer();
+
+	BoundingBox GetLocalAABB() const { return m_localAABB; }
+	BoundingOrientedBox GetLocalOBB() const { return m_localOBB; }
+
+protected:
+	void CreateBoundingBox(const void* vertices, UINT vertexCount, UINT stride);
 
 protected:
 	UINT						m_vertices;
 	ComPtr<ID3D12Resource>		m_vertexBuffer;
 	ComPtr<ID3D12Resource>		m_vertexUploadBuffer;
 	D3D12_VERTEX_BUFFER_VIEW	m_vertexBufferView;
+
+	BoundingBox					m_localAABB;
+	BoundingOrientedBox			m_localOBB;
 };
 
 // Index Buffer »ç¿ë

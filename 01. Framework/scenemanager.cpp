@@ -4,6 +4,20 @@ SceneManager::SceneManager()
 {
 }
 
+void SceneManager::Update(FLOAT timeElapsed)
+{
+	if (!m_scenes.empty()) {
+		m_scenes.back()->Update(timeElapsed);
+	}
+}
+
+void SceneManager::Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
+{
+	if (!m_scenes.empty()) {
+		m_scenes.back()->Render(commandList);
+	}
+}
+
 void SceneManager::ChangeScene(const ComPtr<ID3D12Device>& device,
 	const ComPtr<ID3D12GraphicsCommandList>& commandList, 
 	const ComPtr<ID3D12RootSignature>& rootSignature, std::unique_ptr<Scene> newScene)
@@ -87,16 +101,3 @@ void SceneManager::KeyboardEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 	}
 }
 
-void SceneManager::Update(FLOAT timeElapsed)
-{
-	if (!m_scenes.empty()) {
-		m_scenes.back()->Update(timeElapsed);
-	}
-}
-
-void SceneManager::Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
-{
-	if (!m_scenes.empty()) {
-		m_scenes.back()->Render(commandList);
-	}
-}

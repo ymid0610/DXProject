@@ -12,6 +12,39 @@ void Mesh::ReleaseUploadBuffer()
 	if (m_vertexUploadBuffer) m_vertexUploadBuffer.Reset();
 }
 
+void Mesh::CreateBoundingBox(const void* vertices, UINT vertexCount, UINT stride)
+{
+	if (vertexCount == 0 || !vertices) return;
+
+	XMFLOAT3 vMin{ +FLT_MAX, +FLT_MAX, +FLT_MAX };
+	XMFLOAT3 vMax{ -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+	// 바이트 포인터로 캐스팅해서 stride 크기만큼씩 점프하며 접근
+	const BYTE* pPtr = static_cast<const BYTE*>(vertices);
+
+	for (UINT i = 0; i < vertexCount; ++i)
+	{
+		// 맨 앞에 position이 있다고 가정하고 추출
+		const XMFLOAT3* pPosition = reinterpret_cast<const XMFLOAT3*>(pPtr);
+
+		vMin.x = min(vMin.x, pPosition->x);
+		vMin.y = min(vMin.y, pPosition->y);
+		vMin.z = min(vMin.z, pPosition->z);
+
+		vMax.x = max(vMax.x, pPosition->x);
+		vMax.y = max(vMax.y, pPosition->y);
+		vMax.z = max(vMax.z, pPosition->z);
+
+		pPtr += stride;
+	}
+
+	BoundingBox::CreateFromPoints(m_localAABB, XMLoadFloat3(&vMin), XMLoadFloat3(&vMax));
+
+	m_localOBB.Center = m_localAABB.Center;
+	m_localOBB.Extents = m_localAABB.Extents;
+	m_localOBB.Orientation = XMFLOAT4{ 0.0f, 0.0f, 0.0f, 1.0f };
+}
+
 void IndexMesh::Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
 {
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -94,6 +127,8 @@ CubeMesh::CubeMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12Graphi
 
 	m_vertices = static_cast<UINT>(vertices.size());
 	const UINT vertexBufferSize = m_vertices * sizeof(Vertex);
+
+	CreateBoundingBox(vertices.data(), m_vertices, sizeof(Vertex));
 
 	Utiles::ThrowIfFailed(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

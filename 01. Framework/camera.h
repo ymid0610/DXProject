@@ -4,25 +4,33 @@
 class Camera
 {
 public:
+	// 생성자 소멸자
 	Camera();
 	~Camera() = default;
 
+	// 업데이트 함수
 	virtual void Update(FLOAT timeElapsed) = 0;
 	virtual void UpdateEye(XMFLOAT3 position) = 0;
 	void UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& commandList);
 
+protected:
+	void UpdateBasis();
+
+public:
+	// 멤버	함수
 	virtual void RotatePitch(FLOAT radian) = 0;
 	virtual void RotateYaw(FLOAT radian) = 0;
 
-	void SetLens(FLOAT fovy, FLOAT aspect, FLOAT minZ, FLOAT maxZ);
+	// Setter
+	void SetLens(FLOAT fovy, FLOAT aspect, FLOAT minZ, FLOAT maxZ) {
+		XMStoreFloat4x4(&m_projectionMatrix, XMMatrixPerspectiveFovLH(fovy, aspect, minZ, maxZ));
+	}
 
-	XMFLOAT3 GetEye() const;
-	XMFLOAT3 GetU() const;
-	XMFLOAT3 GetV() const;
-	XMFLOAT3 GetN() const;
-
-protected:
-	void UpdateBasis();
+	// Getter
+	XMFLOAT3 GetEye() const { return m_eye; }
+	XMFLOAT3 GetU() const { return m_u; }
+	XMFLOAT3 GetV() const { return m_v; }
+	XMFLOAT3 GetN() const { return m_n; }
 
 protected:
 	XMFLOAT4X4 m_viewMatrix;
@@ -57,18 +65,30 @@ private:
 class SpringArmCamera : public Camera
 {
 public:
+	// 생성자 소멸자
 	SpringArmCamera();
 	~SpringArmCamera() = default;
 
+	// 업데이트 함수
 	void Update(FLOAT timeElapsed) override;
 	void UpdateEye(XMFLOAT3 position) override;
 
+	// 멤버 함수
 	void RotatePitch(FLOAT radian) override;
 	void RotateYaw(FLOAT radian) override;
 
-	void SetArmLength(FLOAT length);
 	void AddArmLength(FLOAT length);
+
+	// Setter
+	void SetArmLength(FLOAT length);
+	void SetCollisionDistance(float distance);
+
+	// Getter
 	FLOAT GetArmLength() const { return m_targetArmLength; }
+
+	// 레이캐스팅을 위한 원점(타겟)과 방향 반환
+	XMFLOAT3 GetLookAtPosition() const { return m_at; }
+	XMFLOAT3 GetDirectionToCamera() const;
 
 private:
 	FLOAT m_currentArmLength; // 현재 적용중인 길이 (보간용)

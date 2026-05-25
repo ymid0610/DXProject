@@ -132,7 +132,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="01. Framework.h" />
+    <ClInclude Include="collider.h" />
     <ClInclude Include="camera.h" />
+    <ClInclude Include="collisionmanager.h" />
     <ClInclude Include="d3dx12.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="mesh.h" />
@@ -150,7 +152,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="01. Framework.cpp" />
+    <ClCompile Include="collider.cpp" />
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="collisionmanager.cpp" />
     <ClCompile Include="framework.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="object.cpp" />
