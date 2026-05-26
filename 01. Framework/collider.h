@@ -8,6 +8,8 @@ enum ColliderType
 	MESH_TYPE
 };
 
+class GameObject;
+
 class Collider
 {
 public:
@@ -22,9 +24,15 @@ public:
 	ColliderType GetType() const { return m_type; }
 	virtual XMFLOAT3 GetCenter() const = 0;
 
+	// Setter
+	void SetOwner(const shared_ptr<GameObject>& owner) { m_owner = owner; }
+
 	// ¸â¹ö	ÇÔ¼ö
 	virtual bool Raycast(const XMFLOAT3& origin, const XMFLOAT3& direction, float& outDist) const = 0;
 
+public:
+	weak_ptr<GameObject> m_owner;
+		
 protected:
 	ColliderType m_type;
 };

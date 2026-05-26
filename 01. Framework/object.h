@@ -1,16 +1,16 @@
-#pragma once
+ï»¿#pragma once
 #include "stdafx.h"
 #include "mesh.h"
 #include "collider.h"
 
-class GameObject
+class GameObject : public std::enable_shared_from_this<GameObject>
 {
 public:
-	// »ı¼ºÀÚ ¼Ò¸êÀÚ
+	// ìƒì„±ì ì†Œë©¸ì
 	GameObject();
 	~GameObject() = default;
 
-	// ¾÷µ¥ÀÌÆ® ÇÔ¼ö
+	// ì—…ë°ì´íŠ¸ í•¨ìˆ˜
 	virtual void Update(FLOAT timeElapsed);
 	virtual void Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const;
 	virtual void UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& commandList) const;
@@ -27,13 +27,20 @@ public:
 		m_worldMatrix._42 = position.y;
 		m_worldMatrix._43 = position.z;
 	}
-	void SetCollider(const shared_ptr<Collider>& collider) { m_collider = collider; }
 	void SetPreviousPosition(XMFLOAT3 position) { m_previousPosition = position; }
 
-	// ¸â¹ö ÇÔ¼ö
+	void SetCollider(const shared_ptr<Collider>& collider)
+	{
+		m_collider = collider;
+		m_collider->SetOwner(shared_from_this()); 
+	}
+
+	// ë©¤ë²„ í•¨ìˆ˜
 	void Transform(XMFLOAT3 shift);
 	void Rotate(FLOAT pitch, FLOAT yaw, FLOAT roll);
 	void RevertPosition() { SetPosition(m_previousPosition); }
+
+	virtual void OnCollisionEnter(const shared_ptr<Collider>& other) {}
 
 protected:
 	XMFLOAT4X4					m_worldMatrix;
@@ -55,6 +62,8 @@ public:
 	~RotatingObject() = default;
 
 	void Update(FLOAT timeElapsed) override;
+
+	virtual void OnCollisionEnter(const shared_ptr<Collider>& other) override;
 
 private:
 	FLOAT m_rotatingSpeed;

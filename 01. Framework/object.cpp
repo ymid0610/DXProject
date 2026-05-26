@@ -45,7 +45,6 @@ void GameObject::Rotate(FLOAT pitch, FLOAT yaw, FLOAT roll)
 }
 
 
-
 RotatingObject::RotatingObject() : GameObject(), m_rotatingSpeed{ Utiles::Random::GetFloat(10.f, 50.f) }
 {
 }
@@ -55,4 +54,9 @@ void RotatingObject::Update(FLOAT timeElapsed)
 	Rotate(0.f, m_rotatingSpeed * timeElapsed, 0.f);
 
 	GameObject::Update(timeElapsed);
+}
+
+void RotatingObject::OnCollisionEnter(const shared_ptr<Collider>& other)
+{
+	m_rotatingSpeed = -m_rotatingSpeed;
 }

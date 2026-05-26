@@ -5,6 +5,12 @@
 
 class Player;
 
+struct CollisionEvent
+{
+	shared_ptr<Collider> colliderA;
+	shared_ptr<Collider> colliderB;
+};
+
 class CollisionManager
 {
 public:
@@ -14,6 +20,9 @@ public:
 
 	// 업데이트 함수
 	void Update(const shared_ptr<Player>& player, FLOAT timeElapsed);
+
+	// 충돌 이벤트 처리 함수
+	void ProcessCollisions();
 
 	// 멤버 함수
 	void AddCollider(const shared_ptr<Collider>& collider);
@@ -25,4 +34,6 @@ public:
 
 private:
 	vector<shared_ptr<Collider>> m_colliders;
+
+	queue<CollisionEvent> m_eventQueue;
 };

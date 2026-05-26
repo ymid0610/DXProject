@@ -49,7 +49,28 @@ void CollisionManager::Update(const shared_ptr<Player>& player, FLOAT timeElapse
 				player->Transform(Utiles::Vector3::Mul(pushDir, pushSpeed * timeElapsed));
 				player->Update(0.0f); // 밀려난 위치로 최종 동기화
 			}
+
+			m_eventQueue.push({ playerCollider, collider });
 			break;
+		}
+	}
+
+	ProcessCollisions();
+}
+
+void CollisionManager::ProcessCollisions()
+{
+	while (!m_eventQueue.empty())
+	{
+		const auto& event = m_eventQueue.front();
+		m_eventQueue.pop();
+
+		// 안전하게 weak_ptr(lock)를 사용해 살아있는지 확인 후 로직(콜백) 실행
+		if (auto ownerA = event.colliderA->m_owner.lock()) {
+			ownerA->OnCollisionEnter(event.colliderB);
+		}
+		if (auto ownerB = event.colliderB->m_owner.lock()) {
+			ownerB->OnCollisionEnter(event.colliderA);
 		}
 	}
 }
