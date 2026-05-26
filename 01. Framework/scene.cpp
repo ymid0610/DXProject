@@ -18,6 +18,11 @@ void Scene::Update(FLOAT timeElapsed)
 		}
 	}
 
+	if (m_physicsManager)
+	{
+		m_physicsManager->Update(timeElapsed);
+	}
+
 	if (m_collisionManager)
 	{
 		m_collisionManager->Update(m_player, timeElapsed);

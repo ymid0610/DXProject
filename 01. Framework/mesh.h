@@ -71,3 +71,16 @@ public:
 	CubeIndexMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
 	~CubeIndexMesh() = default;
 };
+
+class PlaneMesh : public Mesh
+{
+private:
+	struct Vertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT4 colors;
+	};
+public:
+	PlaneMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
+	~PlaneMesh() = default;
+};

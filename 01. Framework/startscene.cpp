@@ -34,6 +34,7 @@ void StartScene::BuildObjects(const ComPtr<ID3D12Device>& device,
 	const ComPtr<ID3D12RootSignature>& rootSignature)
 {
 	m_collisionManager = make_unique<CollisionManager>();
+	m_physicsManager = make_unique<PysicsManager>();
 
 	m_shader = make_shared<Shader>(device, rootSignature);
 	m_cube = make_shared<CubeIndexMesh>(device, commandList);
@@ -45,7 +46,11 @@ void StartScene::BuildObjects(const ComPtr<ID3D12Device>& device,
 	auto playerCollider = make_shared<BoxCollider>(m_cube);
 	m_player->SetCollider(playerCollider);
 
+	auto playerRigidbody = make_shared<Rigidbody>();
+	m_player->SetRigidbody(playerRigidbody);
+
 	m_collisionManager->AddCollider(playerCollider);
+	m_physicsManager->AddRigidbody(playerRigidbody);
 
 	for (int x = -15; x <= 15; x += 5) {
 		for (int y = -15; y <= 15; y += 5) {
@@ -61,14 +66,32 @@ void StartScene::BuildObjects(const ComPtr<ID3D12Device>& device,
 					static_cast<FLOAT>(z) });
 
 				auto objCollider = make_shared<BoxCollider>(m_cube);
+				auto objRigidbody = make_shared<Rigidbody>();
+
 				object->SetCollider(objCollider);
+				object->SetRigidbody(objRigidbody);
 
 				m_objects.push_back(object);
 
 				m_collisionManager->AddCollider(objCollider);
+				m_physicsManager->AddRigidbody(objRigidbody);
 			}
 		}
 	}
+
+	// ¹Ù´Ú ±×¸®±â
+	auto planeMesh = make_shared<PlaneMesh>(device, commandList);
+	auto floor = make_shared<GameObject>();
+
+	floor->SetMesh(planeMesh);
+	floor->SetPosition(XMFLOAT3{ 0.0f, -17.5f, 0.0f });
+
+	auto floorCollider = make_shared<BoxCollider>(planeMesh);
+	floor->SetCollider(floorCollider);
+
+	m_objects.push_back(floor);
+	m_collisionManager->AddCollider(floorCollider);
+
 
 	m_camera = make_shared<SpringArmCamera>();
 	m_camera->SetLens(0.25 * XM_PI, g_framework->GetAspectRatio(), 0.1f, 1000.f);

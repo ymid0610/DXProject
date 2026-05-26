@@ -267,3 +267,62 @@ CubeIndexMesh::CubeIndexMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID
 	m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
 	m_indexBufferView.SizeInBytes = indexBufferSize;
 }
+
+PlaneMesh::PlaneMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList)
+{
+	vector<Vertex> vertices;
+
+	float w = 15.0f;
+	float d = 15.0f;
+	float y = 0.0f;
+
+	XMFLOAT3 leftTop = { -w, y, +d };
+	XMFLOAT3 rightTop = { +w, y, +d };
+	XMFLOAT3 leftBottom = { -w, y, -d };
+	XMFLOAT3 rightBottom = { +w, y, -d };
+
+	XMFLOAT4 planeColor = { 0.4f, 0.6f, 0.4f, 1.0f };
+
+	vertices.emplace_back(leftTop, planeColor);
+	vertices.emplace_back(rightTop, planeColor);
+	vertices.emplace_back(rightBottom, planeColor);
+
+	vertices.emplace_back(leftTop, planeColor);
+	vertices.emplace_back(rightBottom, planeColor);
+	vertices.emplace_back(leftBottom, planeColor);
+
+	m_vertices = static_cast<UINT>(vertices.size());
+	const UINT vertexBufferSize = m_vertices * sizeof(Vertex);
+
+	CreateBoundingBox(vertices.data(), m_vertices, sizeof(Vertex));
+
+	Utiles::ThrowIfFailed(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(&m_vertexBuffer)));
+
+	Utiles::ThrowIfFailed(device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&m_vertexUploadBuffer)));
+
+	D3D12_SUBRESOURCE_DATA vertexData{};
+	vertexData.pData = vertices.data();
+	vertexData.RowPitch = vertexBufferSize;
+	vertexData.SlicePitch = vertexData.RowPitch;
+	UpdateSubresources<1>(commandList.Get(),
+		m_vertexBuffer.Get(), m_vertexUploadBuffer.Get(), 0, 0, 1, &vertexData);
+
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+
+	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+	m_vertexBufferView.SizeInBytes = vertexBufferSize;
+	m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+}

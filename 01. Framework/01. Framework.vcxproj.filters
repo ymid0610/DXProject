@@ -108,6 +108,12 @@
     <ClInclude Include="collisionmanager.h">
       <Filter>헤더 파일\Collider</Filter>
     </ClInclude>
+    <ClInclude Include="rigidbody.h">
+      <Filter>헤더 파일\Collider</Filter>
+    </ClInclude>
+    <ClInclude Include="pysicsmanager.h">
+      <Filter>헤더 파일\Collider</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="01. Framework.cpp">
@@ -150,6 +156,12 @@
       <Filter>소스 파일\Collider</Filter>
     </ClCompile>
     <ClCompile Include="collisionmanager.cpp">
+      <Filter>소스 파일\Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="rigidbody.cpp">
+      <Filter>소스 파일\Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="pysicsmanager.cpp">
       <Filter>소스 파일\Collider</Filter>
     </ClCompile>
   </ItemGroup>

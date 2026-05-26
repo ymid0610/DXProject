@@ -62,5 +62,9 @@ namespace Utiles
             else XMStoreFloat3(&result, XMVector3AngleBetweenVectors(XMLoadFloat3(&a), XMLoadFloat3(&b)));
             return result;
         }
+        inline float Dot(const XMFLOAT3& a, const XMFLOAT3& b)
+        {
+            return XMVectorGetX(XMVector3Dot(XMLoadFloat3(&a), XMLoadFloat3(&b)));
+		}
     }
 }

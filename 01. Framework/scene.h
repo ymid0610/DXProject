@@ -6,6 +6,7 @@
 #include "player.h"
 #include "camera.h"
 #include "collisionmanager.h"
+#include "pysicsmanager.h"
 
 class Scene
 {
@@ -42,7 +43,9 @@ protected:
 	vector<shared_ptr<GameObject>> m_objects;
 
 	shared_ptr<Mesh> m_cube;
+
 	unique_ptr<CollisionManager> m_collisionManager;
+	unique_ptr<PysicsManager> m_physicsManager;
 };
 
 class StartScene : public Scene

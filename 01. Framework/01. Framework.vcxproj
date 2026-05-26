@@ -140,6 +140,8 @@
     <ClInclude Include="mesh.h" />
     <ClInclude Include="object.h" />
     <ClInclude Include="player.h" />
+    <ClInclude Include="pysicsmanager.h" />
+    <ClInclude Include="rigidbody.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="scenemanager.h" />
     <ClInclude Include="settings.h" />
@@ -159,6 +161,8 @@
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="object.cpp" />
     <ClCompile Include="player.cpp" />
+    <ClCompile Include="pysicsmanager.cpp" />
+    <ClCompile Include="rigidbody.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="scenemanager.cpp" />
     <ClCompile Include="shader.cpp" />
