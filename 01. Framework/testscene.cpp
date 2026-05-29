@@ -19,14 +19,35 @@ void TestScene::BuildObjects(const ComPtr<ID3D12Device>& device,
     m_physicsManager = make_unique<PhysicsManager>();
 
     m_shader = make_shared<Shader>(device, rootSignature);
-    m_cube = make_shared<CubeIndexMesh>(device, commandList);
+    m_overlayShader = make_shared<Shader>(device, rootSignature, "PIXEL_UNLIT", false);
+    m_capsuleMesh = make_shared<CapsuleIndexMesh>(device, commandList, Settings::CapsuleRadius, Settings::CapsuleHeight, 32);
+    m_firstPersonGunMesh = make_shared<FirstPersonGunMesh>(device, commandList);
+    m_crosshairMesh = make_shared<CrosshairMesh>(device, commandList);
 
-    auto capsuleMesh = make_shared<CapsuleIndexMesh>(device, commandList, 1.0f, 1.0f);
+    m_firstPersonGun = make_shared<GameObject>();
+    m_firstPersonGun->SetMesh(m_firstPersonGunMesh);
+
+    m_crosshair = make_shared<GameObject>();
+    m_crosshair->SetMesh(m_crosshairMesh);
+
+    m_mainLight = make_shared<PointLight>();
+    m_mainLight->SetPosition(XMFLOAT3{ 0.0f, -10.0f, 0.0f });
+    m_mainLight->SetRange(360.0f);
+    m_mainLight->SetIntensity(1.f);
+    m_mainLight->SetColor(XMFLOAT3{ 0.82f, 0.90f, 1.0f });
+    m_lights.push_back(m_mainLight);
+
+    m_flashlight = make_shared<SpotLight>();
+    m_flashlight->SetRange(30.0f);
+    m_flashlight->SetIntensity(1.45f);
+    m_flashlight->SetColor(XMFLOAT3{ 1.0f, 0.94f, 0.82f });
+    m_lights.push_back(m_flashlight);
+
     m_player = make_shared<Player>();
-    m_player->SetMesh(capsuleMesh);
+    m_player->SetMesh(m_capsuleMesh);
     m_player->SetPosition(XMFLOAT3{ 0.0f, 0.0f, 0.0f });
 
-    auto playerCollider = make_shared<CapsuleCollider>(1.0f, 1.0f);
+    auto playerCollider = make_shared<CapsuleCollider>(Settings::CapsuleRadius, Settings::CapsuleHeight);
     auto playerRigidbody = make_shared<Rigidbody>();
     playerRigidbody->SetMass(3.0f);
     playerRigidbody->SetRestitution(0.0f);
@@ -46,10 +67,10 @@ void TestScene::BuildObjects(const ComPtr<ID3D12Device>& device,
                 if (x == 0 && y == 0 && z == 0) continue;
 
                 auto object = make_shared<GameObject>();
-                object->SetMesh(m_cube);
+                object->SetMesh(m_capsuleMesh);
                 object->SetPosition(XMFLOAT3{ static_cast<FLOAT>(x), static_cast<FLOAT>(y), static_cast<FLOAT>(z) });
 
-                auto collider = make_shared<BoxCollider>(m_cube);
+                auto collider = make_shared<CapsuleCollider>(Settings::CapsuleRadius, Settings::CapsuleHeight);
                 auto rigidbody = make_shared<Rigidbody>();
                 rigidbody->SetRestitution(0.05f);
                 rigidbody->SetDrag(0.10f);
@@ -83,7 +104,5 @@ void TestScene::BuildObjects(const ComPtr<ID3D12Device>& device,
     m_objects.push_back(rightWall);
     m_collisionManager->AddCollider(rightWallCollider);
 
-    m_camera = make_shared<SpringArmCamera>();
-    m_camera->SetLens(0.25f * XM_PI, g_framework->GetAspectRatio(), 0.1f, 1000.0f);
-    m_player->SetCamera(m_camera);
+    SetActiveCamera(make_shared<FirstPersonCamera>());
 }

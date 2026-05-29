@@ -1,15 +1,22 @@
 #pragma once
 #include "stdafx.h"
+#include "light.h"
 
 class Shader
 {
 public:
-	Shader(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12RootSignature>& rootSignature);
-	~Shader() = default;
+	Shader(const ComPtr<ID3D12Device>& device,
+		const ComPtr<ID3D12RootSignature>& rootSignature,
+		LPCSTR pixelShaderEntry = "PIXEL_MAIN",
+		bool depthEnabled = true);
+	virtual ~Shader();
 
-	void UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& commandList);
+	virtual void UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& commandList);
+	void SetLights(const vector<LightShaderData>& lightData);
 
 protected:
 	ComPtr<ID3D12PipelineState> m_pipelineState;
+	ComPtr<ID3D12Resource> m_lightBuffer;
+	LightBufferData m_lightConstants{};
+	UINT8* m_mappedLightData = nullptr;
 };
-

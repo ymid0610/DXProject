@@ -32,6 +32,17 @@ float GameObject::GetInverseMass() const
     return 1.0f / m_rigidbody->GetMass();
 }
 
+void GameObject::SetWorldMatrix(const XMFLOAT4X4& worldMatrix)
+{
+    m_worldMatrix = worldMatrix;
+
+    m_right = XMFLOAT3{ m_worldMatrix._11, m_worldMatrix._12, m_worldMatrix._13 };
+    m_up = XMFLOAT3{ m_worldMatrix._21, m_worldMatrix._22, m_worldMatrix._23 };
+    m_front = XMFLOAT3{ m_worldMatrix._31, m_worldMatrix._32, m_worldMatrix._33 };
+
+    if (m_collider) m_collider->Update(m_worldMatrix);
+}
+
 void GameObject::SetPosition(XMFLOAT3 position)
 {
     m_worldMatrix._41 = position.x;

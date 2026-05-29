@@ -20,6 +20,9 @@ void Camera::UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& comma
 	XMFLOAT4X4 projectionMatrix;
 	XMStoreFloat4x4(&projectionMatrix, XMMatrixTranspose(XMLoadFloat4x4(&m_projectionMatrix)));
 	commandList->SetGraphicsRoot32BitConstants(1, 16, &projectionMatrix, 16);
+
+	XMFLOAT4 cameraPosition{ m_eye.x, m_eye.y, m_eye.z, 1.0f };
+	commandList->SetGraphicsRoot32BitConstants(1, 4, &cameraPosition, 32);
 }
 
 void Camera::UpdateBasis()
@@ -27,6 +30,45 @@ void Camera::UpdateBasis()
 	m_n = Utiles::Vector3::Normalize(Utiles::Vector3::Sub(m_at, m_eye));
 	m_u = Utiles::Vector3::Normalize(Utiles::Vector3::Cross(m_up, m_n));
 	m_v = Utiles::Vector3::Normalize(Utiles::Vector3::Cross(m_n, m_u));
+}
+
+//
+//////////////////////////////////////////////////////////////////////////////
+FirstPersonCamera::FirstPersonCamera() : Camera{},
+	m_pitch{ 0.0f },
+	m_yaw{ Settings::DefaultCameraYaw },
+	m_eyeOffset{ 0.0f, Settings::FirstPersonEyeHeight, 0.0f }
+{
+}
+
+void FirstPersonCamera::Update(FLOAT timeElapsed)
+{
+	(void)timeElapsed;
+}
+
+void FirstPersonCamera::UpdateEye(XMFLOAT3 position)
+{
+	m_eye = Utiles::Vector3::Add(position, m_eyeOffset);
+
+	XMFLOAT3 lookDirection{
+		sinf(m_yaw) * cosf(m_pitch),
+		sinf(m_pitch),
+		cosf(m_yaw) * cosf(m_pitch)
+	};
+
+	m_at = Utiles::Vector3::Add(m_eye, Utiles::Vector3::Normalize(lookDirection));
+	UpdateBasis();
+}
+
+void FirstPersonCamera::RotatePitch(FLOAT radian)
+{
+	m_pitch += radian;
+	m_pitch = clamp(m_pitch, Settings::FirstPersonMinPitch, Settings::FirstPersonMaxPitch);
+}
+
+void FirstPersonCamera::RotateYaw(FLOAT radian)
+{
+	m_yaw -= radian;
 }
 
 //
@@ -72,7 +114,7 @@ SpringArmCamera::SpringArmCamera() : Camera{},
 m_targetArmLength{ Settings::DefaultCameraRadius },
 m_currentArmLength{ Settings::DefaultCameraRadius },
 m_phi{ Settings::DefaultCameraPitch },
-m_theta{ Settings::DefaultCameraYaw },
+m_theta{ Settings::DefaultSpringArmYaw },
 m_offset{ 0.0f, 0.f, 0.0f } // 캐릭터 중심점 오프셋 (예: Y축으로 1.5만큼 위를 바라봄)
 {
 }

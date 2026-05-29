@@ -31,6 +31,7 @@ public:
 	XMFLOAT3 GetU() const { return m_u; }
 	XMFLOAT3 GetV() const { return m_v; }
 	XMFLOAT3 GetN() const { return m_n; }
+	virtual bool IsFirstPerson() const { return false; }
 
 protected:
 	XMFLOAT4X4 m_viewMatrix;
@@ -45,6 +46,24 @@ protected:
 	XMFLOAT3 m_n;
 };
 
+class FirstPersonCamera : public Camera
+{
+public:
+	FirstPersonCamera();
+	~FirstPersonCamera() = default;
+
+	void Update(FLOAT timeElapsed) override;
+	void UpdateEye(XMFLOAT3 position) override;
+
+	void RotatePitch(FLOAT radian) override;
+	void RotateYaw(FLOAT radian) override;
+	bool IsFirstPerson() const override { return true; }
+
+private:
+	FLOAT m_pitch;
+	FLOAT m_yaw;
+	XMFLOAT3 m_eyeOffset;
+};
 class ThirdPersonCamera : public Camera
 {
 public:

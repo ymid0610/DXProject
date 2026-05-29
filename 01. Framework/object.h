@@ -19,12 +19,14 @@ public:
     shared_ptr<Rigidbody> GetRigidbody() const { return m_rigidbody; }
     XMFLOAT4X4 GetWorldMatrix() const { return m_worldMatrix; }
     XMFLOAT3 GetPosition() const { return XMFLOAT3{ m_worldMatrix._41, m_worldMatrix._42, m_worldMatrix._43 }; }
+    XMFLOAT3 GetFront() const { return m_front; }
 
     virtual float GetInverseMass() const;
     virtual float GetRestitution() const { return m_rigidbody ? m_rigidbody->GetRestitution() : 0.0f; }
     virtual XMFLOAT3 GetVelocity() const { return m_rigidbody ? m_rigidbody->GetVelocity() : XMFLOAT3{ 0.0f, 0.0f, 0.0f }; }
 
     void SetMesh(const shared_ptr<Mesh>& mesh) { m_mesh = mesh; }
+    void SetWorldMatrix(const XMFLOAT4X4& worldMatrix);
     void SetPosition(XMFLOAT3 position);
     void SetCollider(const shared_ptr<Collider>& collider);
     void SetRigidbody(const shared_ptr<Rigidbody>& rigidbody);

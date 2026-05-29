@@ -7,9 +7,16 @@ namespace Settings
 
     constexpr FLOAT DefaultCameraPitch = XM_PIDIV2 - 0.3f;
     constexpr FLOAT DefaultCameraYaw = 0.f;
+    constexpr FLOAT DefaultSpringArmYaw = -XM_PIDIV2;
     constexpr FLOAT DefaultCameraRadius = 10.f;
     constexpr FLOAT CameraMinPitch = XM_PIDIV2 - 0.9f;
     constexpr FLOAT CameraMaxPitch = XM_PIDIV2 + 0.9f;
+    constexpr FLOAT FirstPersonEyeHeight = 1.2f;
+    constexpr FLOAT FirstPersonMinPitch = -XM_PIDIV2 + 0.1f;
+    constexpr FLOAT FirstPersonMaxPitch = XM_PIDIV2 - 0.1f;
+
+    constexpr FLOAT CapsuleRadius = 0.5f;
+    constexpr FLOAT CapsuleHeight = 1.0f;
 
     constexpr FLOAT PlayerSpeed = 5.f;
 }

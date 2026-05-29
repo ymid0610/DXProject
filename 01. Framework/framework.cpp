@@ -239,13 +239,16 @@ void GameFramework::CreateDepthStencilView()
 
 void GameFramework::CreateRootSignature()
 {
-	CD3DX12_ROOT_PARAMETER rootParameter[2];
+	CD3DX12_ROOT_PARAMETER rootParameter[3];
 
 	// GameObject : 월드 변환 행렬(16)
 	rootParameter[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_ALL);
 
-	// Camera : 뷰 변환 행렬(16) + 투영 변환 행렬(16)
-	rootParameter[1].InitAsConstants(32, 1, 0, D3D12_SHADER_VISIBILITY_ALL);
+	// Camera : 뷰 변환 행렬(16) + 투영 변환 행렬(16) + 카메라 위치(4)
+	rootParameter[1].InitAsConstants(36, 1, 0, D3D12_SHADER_VISIBILITY_ALL);
+
+	// Lighting : CBV로 여러 조명 전달
+	rootParameter[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 	rootSignatureDesc.Init(_countof(rootParameter), rootParameter, 0, NULL, 

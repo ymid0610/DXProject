@@ -22,6 +22,7 @@
 #include <random>
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")

@@ -50,6 +50,7 @@ private:
 	struct Vertex
 	{
 		XMFLOAT3 position;
+		XMFLOAT3 normal;
 		XMFLOAT4 colors;
 	};
 
@@ -64,6 +65,7 @@ private:
 	struct Vertex
 	{
 		XMFLOAT3 position;
+		XMFLOAT3 normal;
 		XMFLOAT4 colors;
 	};
 
@@ -78,6 +80,7 @@ private:
 	struct Vertex
 	{
 		XMFLOAT3 position;
+		XMFLOAT3 normal;
 		XMFLOAT4 colors;
 	};
 public:
@@ -91,9 +94,39 @@ private:
 	struct Vertex
 	{
 		XMFLOAT3 position;
+		XMFLOAT3 normal;
 		XMFLOAT4 colors;
 	};
 public:
 	CapsuleIndexMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList, float radius = 0.5f, float height = 1.0f, int segments = 16);
 	~CapsuleIndexMesh() = default;
+};
+class FirstPersonGunMesh : public Mesh
+{
+private:
+	struct Vertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT3 normal;
+		XMFLOAT4 colors;
+	};
+
+public:
+	FirstPersonGunMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
+	~FirstPersonGunMesh() = default;
+};
+
+class CrosshairMesh : public Mesh
+{
+private:
+	struct Vertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT3 normal;
+		XMFLOAT4 colors;
+	};
+
+public:
+	CrosshairMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
+	~CrosshairMesh() = default;
 };

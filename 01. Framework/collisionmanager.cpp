@@ -188,6 +188,116 @@ namespace
         return true;
     }
 
+    void ClosestPointsBetweenSegments(FXMVECTOR p1, FXMVECTOR q1, FXMVECTOR p2, FXMVECTOR q2,
+        XMVECTOR& outPoint1, XMVECTOR& outPoint2)
+    {
+        XMVECTOR d1 = XMVectorSubtract(q1, p1);
+        XMVECTOR d2 = XMVectorSubtract(q2, p2);
+        XMVECTOR r = XMVectorSubtract(p1, p2);
+
+        float a = VectorDot(d1, d1);
+        float e = VectorDot(d2, d2);
+        float f = VectorDot(d2, r);
+
+        float s = 0.0f;
+        float t = 0.0f;
+
+        if (a <= Epsilon && e <= Epsilon)
+        {
+            outPoint1 = p1;
+            outPoint2 = p2;
+            return;
+        }
+
+        if (a <= Epsilon)
+        {
+            t = clamp(f / e, 0.0f, 1.0f);
+        }
+        else
+        {
+            float c = VectorDot(d1, r);
+
+            if (e <= Epsilon)
+            {
+                s = clamp(-c / a, 0.0f, 1.0f);
+            }
+            else
+            {
+                float b = VectorDot(d1, d2);
+                float denom = a * e - b * b;
+
+                if (fabsf(denom) > Epsilon) s = clamp((b * f - c * e) / denom, 0.0f, 1.0f);
+
+                float tNumerator = b * s + f;
+                if (tNumerator < 0.0f)
+                {
+                    t = 0.0f;
+                    s = clamp(-c / a, 0.0f, 1.0f);
+                }
+                else if (tNumerator > e)
+                {
+                    t = 1.0f;
+                    s = clamp((b - c) / a, 0.0f, 1.0f);
+                }
+                else
+                {
+                    t = tNumerator / e;
+                }
+            }
+        }
+
+        outPoint1 = XMVectorAdd(p1, XMVectorScale(d1, s));
+        outPoint2 = XMVectorAdd(p2, XMVectorScale(d2, t));
+    }
+
+    bool ComputeCapsuleCapsuleContact(const CapsuleCollider& capsuleA, const CapsuleCollider& capsuleB, ContactInfo& outContact)
+    {
+        XMFLOAT3 capsuleAPointA = capsuleA.GetPointA();
+        XMFLOAT3 capsuleAPointB = capsuleA.GetPointB();
+        XMFLOAT3 capsuleBPointA = capsuleB.GetPointA();
+        XMFLOAT3 capsuleBPointB = capsuleB.GetPointB();
+
+        XMVECTOR segmentA0 = XMLoadFloat3(&capsuleAPointA);
+        XMVECTOR segmentA1 = XMLoadFloat3(&capsuleAPointB);
+        XMVECTOR segmentB0 = XMLoadFloat3(&capsuleBPointA);
+        XMVECTOR segmentB1 = XMLoadFloat3(&capsuleBPointB);
+
+        XMVECTOR pointA{};
+        XMVECTOR pointB{};
+        ClosestPointsBetweenSegments(segmentA0, segmentA1, segmentB0, segmentB1, pointA, pointB);
+
+        XMVECTOR delta = XMVectorSubtract(pointB, pointA);
+        float distanceSq = VectorLengthSq(delta);
+        float radiusSum = capsuleA.GetRadius() + capsuleB.GetRadius();
+        float radiusSumSq = radiusSum * radiusSum;
+
+        if (distanceSq > radiusSumSq) return false;
+
+        XMVECTOR normal{};
+        float penetration = 0.0f;
+
+        if (distanceSq > Epsilon)
+        {
+            float distance = sqrtf(distanceSq);
+            normal = XMVectorScale(delta, 1.0f / distance);
+            penetration = radiusSum - distance;
+        }
+        else
+        {
+            XMFLOAT3 centerAFloat = capsuleA.GetCenter();
+            XMFLOAT3 centerBFloat = capsuleB.GetCenter();
+            XMVECTOR centerA = XMLoadFloat3(&centerAFloat);
+            XMVECTOR centerB = XMLoadFloat3(&centerBFloat);
+
+            normal = SafeNormalize(XMVectorSubtract(centerB, centerA), XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+            penetration = radiusSum;
+        }
+
+        outContact.normal = ToFloat3(normal);
+        outContact.penetration = max(penetration, 0.0f);
+        return true;
+    }
+
     void ApplyImpulse(const shared_ptr<GameObject>& objA, const shared_ptr<GameObject>& objB, const XMFLOAT3& impulse)
     {
         if (objA && objA->GetInverseMass() > 0.0f) objA->AddImpulse(Utiles::Vector3::Mul(impulse, -1.0f));
@@ -328,6 +438,13 @@ bool CollisionManager::CheckCollision(const shared_ptr<Collider>& a, const share
 
     bool isACapsule = a->GetType() == ColliderType::Capsule;
     bool isBCapsule = b->GetType() == ColliderType::Capsule;
+
+    if (isACapsule && isBCapsule)
+    {
+        auto capsuleA = static_pointer_cast<CapsuleCollider>(a);
+        auto capsuleB = static_pointer_cast<CapsuleCollider>(b);
+        return ComputeCapsuleCapsuleContact(*capsuleA, *capsuleB, outContact);
+    }
 
     if ((isACapsule && b->GetType() == ColliderType::Box) ||
         (a->GetType() == ColliderType::Box && isBCapsule))
