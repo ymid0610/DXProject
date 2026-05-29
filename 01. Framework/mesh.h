@@ -84,3 +84,16 @@ public:
 	PlaneMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
 	~PlaneMesh() = default;
 };
+
+class CapsuleIndexMesh : public IndexMesh
+{
+private:
+	struct Vertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT4 colors;
+	};
+public:
+	CapsuleIndexMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList, float radius = 0.5f, float height = 1.0f, int segments = 16);
+	~CapsuleIndexMesh() = default;
+};

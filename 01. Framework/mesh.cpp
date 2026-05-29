@@ -206,6 +206,8 @@ CubeIndexMesh::CubeIndexMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID
 	m_vertices = static_cast<UINT>(vertices.size());
 	const UINT vertexBufferSize = m_vertices * sizeof(Vertex);
 
+	CreateBoundingBox(vertices.data(), m_vertices, sizeof(Vertex));
+
 	Utiles::ThrowIfFailed(device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
@@ -325,4 +327,83 @@ PlaneMesh::PlaneMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12Grap
 	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vertexBufferView.SizeInBytes = vertexBufferSize;
 	m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+}
+
+CapsuleIndexMesh::CapsuleIndexMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList, float radius, float height, int segments)
+{
+	std::vector<Vertex> vertices;
+	std::vector<UINT> indices;
+
+	int rings = segments / 2;
+	float halfHeight = height * 0.5f;
+	XMFLOAT4 color = { 0.8f, 0.2f, 0.2f, 1.0f }; // 빨간색 캡슐
+
+	// 1. 위쪽 반구 (Top Hemisphere)
+	for (int i = 0; i <= rings; ++i) {
+		float theta = XM_PIDIV2 - (static_cast<float>(i) / rings) * XM_PIDIV2;
+		for (int j = 0; j <= segments; ++j) {
+			float phi = (static_cast<float>(j) / segments) * XM_2PI;
+			XMFLOAT3 pos(radius * cos(theta) * cos(phi), radius * sin(theta) + halfHeight, radius * cos(theta) * sin(phi));
+			vertices.push_back({ pos, color });
+		}
+	}
+	// 2. 원통 (Cylinder)
+	// (위, 아래 경계는 반구의 끝부분과 일치하도록 이미 만들어짐)
+
+	// 3. 아래쪽 반구 (Bottom Hemisphere)
+	for (int i = 0; i <= rings; ++i) {
+		float theta = -(static_cast<float>(i) / rings) * XM_PIDIV2;
+		for (int j = 0; j <= segments; ++j) {
+			float phi = (static_cast<float>(j) / segments) * XM_2PI;
+			XMFLOAT3 pos(radius * cos(theta) * cos(phi), radius * sin(theta) - halfHeight, radius * cos(theta) * sin(phi));
+			vertices.push_back({ pos, color });
+		}
+	}
+
+	// 인덱스 생성
+	int ringVertexCount = segments + 1;
+	for (int i = 0; i < (rings * 2 + 1); ++i) {
+		for (int j = 0; j < segments; ++j) {
+			indices.push_back(i * ringVertexCount + j);
+			indices.push_back((i + 1) * ringVertexCount + j);
+			indices.push_back(i * ringVertexCount + j + 1);
+
+			indices.push_back(i * ringVertexCount + j + 1);
+			indices.push_back((i + 1) * ringVertexCount + j);
+			indices.push_back((i + 1) * ringVertexCount + j + 1);
+		}
+	}
+
+	m_vertices = static_cast<UINT>(vertices.size());
+	m_indices = static_cast<UINT>(indices.size());
+	CreateBoundingBox(vertices.data(), m_vertices, sizeof(Vertex));
+
+	const UINT vertexBufferSize = m_vertices * sizeof(Vertex);
+	const UINT indexBufferSize = m_indices * sizeof(UINT);
+
+	// Vertex Buffer
+	Utiles::ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_vertexBuffer)));
+	Utiles::ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_vertexUploadBuffer)));
+	D3D12_SUBRESOURCE_DATA vertexData{};
+	vertexData.pData = vertices.data();
+	vertexData.RowPitch = vertexBufferSize;
+	vertexData.SlicePitch = vertexData.RowPitch;
+	UpdateSubresources<1>(commandList.Get(), m_vertexBuffer.Get(), m_vertexUploadBuffer.Get(), 0, 0, 1, &vertexData);
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_vertexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
+	m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+	m_vertexBufferView.SizeInBytes = vertexBufferSize;
+	m_vertexBufferView.StrideInBytes = sizeof(Vertex);
+
+	// Index Buffer
+	Utiles::ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_indexBuffer)));
+	Utiles::ThrowIfFailed(device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_indexUploadBuffer)));
+	D3D12_SUBRESOURCE_DATA indexData{};
+	indexData.pData = indices.data();
+	indexData.RowPitch = indexBufferSize;
+	indexData.SlicePitch = indexData.RowPitch;
+	UpdateSubresources<1>(commandList.Get(), m_indexBuffer.Get(), m_indexUploadBuffer.Get(), 0, 0, 1, &indexData);
+	commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_indexBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+	m_indexBufferView.BufferLocation = m_indexBuffer->GetGPUVirtualAddress();
+	m_indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	m_indexBufferView.SizeInBytes = indexBufferSize;
 }

@@ -140,7 +140,7 @@
     <ClInclude Include="mesh.h" />
     <ClInclude Include="object.h" />
     <ClInclude Include="player.h" />
-    <ClInclude Include="pysicsmanager.h" />
+    <ClInclude Include="physicsmanager.h" />
     <ClInclude Include="rigidbody.h" />
     <ClInclude Include="scene.h" />
     <ClInclude Include="scenemanager.h" />
@@ -161,13 +161,13 @@
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="object.cpp" />
     <ClCompile Include="player.cpp" />
-    <ClCompile Include="pysicsmanager.cpp" />
+    <ClCompile Include="physicsmanager.cpp" />
     <ClCompile Include="rigidbody.cpp" />
     <ClCompile Include="scene.cpp" />
     <ClCompile Include="scenemanager.cpp" />
     <ClCompile Include="shader.cpp" />
-    <ClCompile Include="startscene.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="testscene.cpp" />
     <ClCompile Include="timer.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -1,62 +1,82 @@
 #include "object.h"
 
-GameObject::GameObject() : m_right{1.f, 0.f, 0.f}, m_up{0.f, 1.f, 0.f}, m_front{0.f, 0.f, 1.f}
+GameObject::GameObject()
 {
-	XMStoreFloat4x4(&m_worldMatrix, XMMatrixIdentity());
+    XMStoreFloat4x4(&m_worldMatrix, XMMatrixIdentity());
 }
 
-// 업데이트 함수
 void GameObject::Update(FLOAT timeElapsed)
 {
-	if (m_collider)
-	{
-		m_collider->Update(m_worldMatrix);
-	}
+    (void)timeElapsed;
+    if (m_collider) m_collider->Update(m_worldMatrix);
 }
 
 void GameObject::UpdateShaderVariable(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
 {
-	XMFLOAT4X4 worldMatrix;
-	XMStoreFloat4x4(&worldMatrix, XMMatrixTranspose(XMLoadFloat4x4(&m_worldMatrix)));
-	commandList->SetGraphicsRoot32BitConstants(0, 16, &worldMatrix, 0);
+    XMFLOAT4X4 worldMatrix{};
+    XMStoreFloat4x4(&worldMatrix, XMMatrixTranspose(XMLoadFloat4x4(&m_worldMatrix)));
+    commandList->SetGraphicsRoot32BitConstants(0, 16, &worldMatrix, 0);
 }
 
-// 렌더링 함수
 void GameObject::Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
 {
-	UpdateShaderVariable(commandList);
-	m_mesh->Render(commandList);
+    if (!m_mesh) return;
+
+    UpdateShaderVariable(commandList);
+    m_mesh->Render(commandList);
 }
 
-// 멤버 함수
+float GameObject::GetInverseMass() const
+{
+    if (!m_rigidbody || m_rigidbody->IsKinematic()) return 0.0f;
+    return 1.0f / m_rigidbody->GetMass();
+}
+
+void GameObject::SetPosition(XMFLOAT3 position)
+{
+    m_worldMatrix._41 = position.x;
+    m_worldMatrix._42 = position.y;
+    m_worldMatrix._43 = position.z;
+
+    if (m_collider) m_collider->Update(m_worldMatrix);
+}
+
+void GameObject::SetCollider(const shared_ptr<Collider>& collider)
+{
+    m_collider = collider;
+    if (!m_collider) return;
+
+    m_collider->SetOwner(shared_from_this());
+    m_collider->Update(m_worldMatrix);
+}
+
+void GameObject::SetRigidbody(const shared_ptr<Rigidbody>& rigidbody)
+{
+    m_rigidbody = rigidbody;
+    if (m_rigidbody) m_rigidbody->SetOwner(shared_from_this());
+}
+
 void GameObject::Transform(XMFLOAT3 shift)
 {
-	SetPosition(Utiles::Vector3::Add(GetPosition(), shift));
+    SetPosition(Utiles::Vector3::Add(GetPosition(), shift));
 }
 
 void GameObject::Rotate(FLOAT pitch, FLOAT yaw, FLOAT roll)
 {
-	XMMATRIX rotate{ XMMatrixRotationRollPitchYaw(XMConvertToRadians(pitch), XMConvertToRadians(yaw), XMConvertToRadians(roll)) };
-	XMStoreFloat4x4(&m_worldMatrix, rotate * XMLoadFloat4x4(&m_worldMatrix));
+    XMMATRIX rotate = XMMatrixRotationRollPitchYaw(XMConvertToRadians(pitch), XMConvertToRadians(yaw), XMConvertToRadians(roll));
+    XMStoreFloat4x4(&m_worldMatrix, rotate * XMLoadFloat4x4(&m_worldMatrix));
 
-	XMStoreFloat3(&m_right, XMVector3TransformNormal(XMLoadFloat3(&m_right), rotate));
-	XMStoreFloat3(&m_up, XMVector3TransformNormal(XMLoadFloat3(&m_up), rotate));
-	XMStoreFloat3(&m_front, XMVector3TransformNormal(XMLoadFloat3(&m_front), rotate));
+    XMStoreFloat3(&m_right, XMVector3TransformNormal(XMLoadFloat3(&m_right), rotate));
+    XMStoreFloat3(&m_up, XMVector3TransformNormal(XMLoadFloat3(&m_up), rotate));
+    XMStoreFloat3(&m_front, XMVector3TransformNormal(XMLoadFloat3(&m_front), rotate));
+
+    if (m_collider) m_collider->Update(m_worldMatrix);
 }
 
-
-RotatingObject::RotatingObject() : GameObject(), m_rotatingSpeed{ Utiles::Random::GetFloat(10.f, 50.f) }
+void GameObject::AddImpulse(XMFLOAT3 impulse)
 {
-}
-
-void RotatingObject::Update(FLOAT timeElapsed)
-{
-	Rotate(0.f, m_rotatingSpeed * timeElapsed, 0.f);
-
-	GameObject::Update(timeElapsed);
-}
-
-void RotatingObject::OnCollisionEnter(const shared_ptr<Collider>& other)
-{
-	m_rotatingSpeed = -m_rotatingSpeed;
+    if (m_rigidbody && !m_rigidbody->IsKinematic())
+    {
+        m_rigidbody->AddForce(impulse, ForceMode::Impulse);
+    }
 }

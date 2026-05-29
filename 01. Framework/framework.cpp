@@ -46,19 +46,14 @@ void GameFramework::KeyboardEvent(FLOAT timeElapsed)
 	m_scene->KeyboardEvent(timeElapsed);
 }
 
-void GameFramework::MouseEvent(UINT message, LPARAM lParam)
+void GameFramework::KeyboardEvent(UINT message, WPARAM wParam)
 {
-	m_scene->MouseEvent(message, lParam);
+	m_scene->KeyboardEvent(message, wParam);
 }
 
-void GameFramework::KeyboardEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+void GameFramework::MouseWheelEvent(WPARAM wParam)
 {
-	m_scene->KeyboardEvent(hWnd, message, wParam, lParam);
-}
-
-void GameFramework::MouseEvent(UINT message, WPARAM wParam, LPARAM lParam)
-{
-	m_scene->MouseEvent(message, wParam, lParam);
+	m_scene->MouseWheelEvent(wParam);
 }
 
 void GameFramework::SetActive(BOOL isActive)
@@ -268,9 +263,7 @@ void GameFramework::BuildObjects()
 	m_commandList->Reset(m_commandAllocator.Get(), nullptr);
 
 	m_scene = make_unique<SceneManager>();
-	m_scene->PushScene(m_device, m_commandList, m_rootSignature, make_unique<StartScene>());
-
-	m_scene->PushScene(m_device, m_commandList, m_rootSignature, make_unique<Scene>());
+	m_scene->PushScene(m_device, m_commandList, m_rootSignature, make_unique<TestScene>());
 
 	m_commandList->Close();
 	ID3D12CommandList* ppCommandList[] = { m_commandList.Get() };

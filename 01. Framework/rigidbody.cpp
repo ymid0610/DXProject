@@ -41,6 +41,8 @@ void Rigidbody::Update(FLOAT timeElapsed, const XMFLOAT3& globalGravity)
 
     // 한 프레임 처리가 끝났으므로 지속 힘(Force) 초기화
     accumulatedForce = { 0.f, 0.f, 0.f };
+
+    isGrounded = false;
 }
 
 void Rigidbody::AddForce(const DirectX::XMFLOAT3& force, ForceMode mode)

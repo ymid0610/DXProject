@@ -111,7 +111,7 @@
     <ClInclude Include="rigidbody.h">
       <Filter>헤더 파일\Collider</Filter>
     </ClInclude>
-    <ClInclude Include="pysicsmanager.h">
+    <ClInclude Include="physicsmanager.h">
       <Filter>헤더 파일\Collider</Filter>
     </ClInclude>
   </ItemGroup>
@@ -161,7 +161,7 @@
     <ClCompile Include="rigidbody.cpp">
       <Filter>소스 파일\Collider</Filter>
     </ClCompile>
-    <ClCompile Include="pysicsmanager.cpp">
+    <ClCompile Include="physicsmanager.cpp">
       <Filter>소스 파일\Collider</Filter>
     </ClCompile>
   </ItemGroup>

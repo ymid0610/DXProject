@@ -150,14 +150,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_LBUTTONUP:
     case WM_RBUTTONDOWN:
     case WM_RBUTTONUP:
-        g_framework->MouseEvent(message, lParam);
-        break;
     case WM_MOUSEWHEEL:
-        g_framework->MouseEvent(message, wParam, lParam);
+		g_framework->MouseWheelEvent(wParam);
 	    break;
     case WM_CHAR:
     case WM_KEYDOWN:
-        g_framework->KeyboardEvent(hWnd, message, wParam, lParam);
+		g_framework->KeyboardEvent(message, wParam);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);

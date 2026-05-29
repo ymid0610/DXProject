@@ -1,173 +1,368 @@
-﻿#include "collisionmanager.h"
-#include "player.h"
+#include "collisionmanager.h"
+#include "object.h"
+
+using namespace Utiles::Physics;
+
+namespace
+{
+    struct CollisionCandidate
+    {
+        shared_ptr<Collider> colliderA;
+        shared_ptr<Collider> colliderB;
+        shared_ptr<GameObject> ownerA;
+        shared_ptr<GameObject> ownerB;
+    };
+
+    struct ColliderProxy
+    {
+        shared_ptr<Collider> collider;
+        shared_ptr<GameObject> owner;
+    };
+
+    bool IsDynamicObject(const shared_ptr<GameObject>& object)
+    {
+        return object && object->GetInverseMass() > 0.0f;
+    }
+
+    bool BroadPhaseOverlap(const shared_ptr<Collider>& colA, const shared_ptr<Collider>& colB)
+    {
+        BoundingBox aabbA = colA->GetWorldAABB();
+        BoundingBox aabbB = colB->GetWorldAABB();
+        return aabbA.Intersects(aabbB);
+    }
+
+    void AddCandidateIfBroadPhaseOverlaps(vector<CollisionCandidate>& candidates,
+        const ColliderProxy& proxyA, const ColliderProxy& proxyB)
+    {
+        if (!BroadPhaseOverlap(proxyA.collider, proxyB.collider)) return;
+        candidates.push_back({ proxyA.collider, proxyB.collider, proxyA.owner, proxyB.owner });
+    }
+
+    vector<CollisionCandidate> BuildCollisionCandidates(const vector<shared_ptr<Collider>>& colliders)
+    {
+        vector<ColliderProxy> dynamicColliders;
+        vector<ColliderProxy> staticColliders;
+        dynamicColliders.reserve(colliders.size());
+        staticColliders.reserve(colliders.size());
+
+        for (const auto& collider : colliders)
+        {
+            if (!collider) continue;
+
+            auto owner = collider->m_owner.lock();
+            if (!owner) continue;
+
+            ColliderProxy proxy{ collider, owner };
+            if (IsDynamicObject(owner)) dynamicColliders.push_back(proxy);
+            else staticColliders.push_back(proxy);
+        }
+
+        vector<CollisionCandidate> candidates;
+        candidates.reserve(dynamicColliders.size() * 2);
+
+        for (size_t i = 0; i < dynamicColliders.size(); ++i)
+        {
+            const auto& dynamicA = dynamicColliders[i];
+
+            for (size_t j = i + 1; j < dynamicColliders.size(); ++j)
+            {
+                AddCandidateIfBroadPhaseOverlaps(candidates, dynamicA, dynamicColliders[j]);
+            }
+
+            for (const auto& staticCollider : staticColliders)
+            {
+                AddCandidateIfBroadPhaseOverlaps(candidates, dynamicA, staticCollider);
+            }
+        }
+
+        return candidates;
+    }
+
+    bool ComputeOBBOBBContact(const BoundingOrientedBox& obbA, const BoundingOrientedBox& obbB, ContactInfo& outContact)
+    {
+        XMVECTOR axesA[3]{};
+        XMVECTOR axesB[3]{};
+        GetOBBAxes(obbA, axesA);
+        GetOBBAxes(obbB, axesB);
+
+        XMVECTOR centerA = XMLoadFloat3(&obbA.Center);
+        XMVECTOR centerB = XMLoadFloat3(&obbB.Center);
+        XMVECTOR centerDelta = XMVectorSubtract(centerB, centerA);
+
+        float minOverlap = FLT_MAX;
+        XMVECTOR minAxis = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+        for (int i = 0; i < 3; ++i)
+        {
+            if (!TestOBBAxis(obbA, axesA, obbB, axesB, centerDelta, axesA[i], minOverlap, minAxis)) return false;
+            if (!TestOBBAxis(obbA, axesA, obbB, axesB, centerDelta, axesB[i], minOverlap, minAxis)) return false;
+        }
+
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; ++j)
+            {
+                XMVECTOR crossAxis = XMVector3Cross(axesA[i], axesB[j]);
+                if (!TestOBBAxis(obbA, axesA, obbB, axesB, centerDelta, crossAxis, minOverlap, minAxis)) return false;
+            }
+        }
+
+        outContact.normal = ToFloat3(SafeNormalize(minAxis, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)));
+        outContact.penetration = max(minOverlap, 0.0f);
+        return true;
+    }
+
+    bool ComputeCapsuleOBBContact(const CapsuleCollider& capsule, const BoundingOrientedBox& obb, ContactInfo& outContact)
+    {
+        XMFLOAT3 pointA = capsule.GetPointA();
+        XMFLOAT3 pointB = capsule.GetPointB();
+        XMFLOAT3 capsuleCenterFloat = capsule.GetCenter();
+
+        XMVECTOR segmentA = XMLoadFloat3(&pointA);
+        XMVECTOR segmentB = XMLoadFloat3(&pointB);
+        XMVECTOR capsuleCenter = XMLoadFloat3(&capsuleCenterFloat);
+        XMVECTOR boxCenter = XMLoadFloat3(&obb.Center);
+
+        XMVECTOR axes[3]{};
+        GetOBBAxes(obb, axes);
+
+        XMVECTOR segmentPoint = ClosestPointOnSegment(boxCenter, segmentA, segmentB);
+        XMVECTOR boxPoint = ClosestPointOnOBB(segmentPoint, obb, axes);
+
+        for (int i = 0; i < 4; ++i)
+        {
+            segmentPoint = ClosestPointOnSegment(boxPoint, segmentA, segmentB);
+            boxPoint = ClosestPointOnOBB(segmentPoint, obb, axes);
+        }
+
+        XMVECTOR capToBox = XMVectorSubtract(boxPoint, segmentPoint);
+        float distanceSq = VectorLengthSq(capToBox);
+        float radius = capsule.GetRadius();
+        float radiusSq = radius * radius;
+
+        if (distanceSq > radiusSq) return false;
+
+        XMVECTOR normal{};
+        float penetration = 0.0f;
+
+        if (distanceSq > Epsilon)
+        {
+            float distance = sqrtf(distanceSq);
+            normal = XMVectorScale(capToBox, 1.0f / distance);
+            penetration = radius - distance;
+        }
+        else
+        {
+            XMFLOAT3 localPoint{};
+            XMFLOAT3 localCenter{};
+            XMStoreFloat3(&localPoint, GetOBBLocalCoordinates(segmentPoint, obb, axes));
+            XMStoreFloat3(&localCenter, GetOBBLocalCoordinates(capsuleCenter, obb, axes));
+
+            float coords[3] = { localPoint.x, localPoint.y, localPoint.z };
+            float centerCoords[3] = { localCenter.x, localCenter.y, localCenter.z };
+            float extents[3] = { obb.Extents.x, obb.Extents.y, obb.Extents.z };
+
+            int bestAxis = 0;
+            float bestDistance = FLT_MAX;
+            float bestSign = -1.0f;
+
+            for (int i = 0; i < 3; ++i)
+            {
+                float faceDistance = max(extents[i] - fabsf(coords[i]), 0.0f);
+                if (faceDistance < bestDistance)
+                {
+                    bestAxis = i;
+                    bestDistance = faceDistance;
+
+                    float reference = fabsf(centerCoords[i]) > Epsilon ? centerCoords[i] : coords[i];
+                    bestSign = reference >= 0.0f ? -1.0f : 1.0f;
+                }
+            }
+
+            normal = XMVectorScale(axes[bestAxis], bestSign);
+            penetration = radius + bestDistance;
+        }
+
+        outContact.normal = ToFloat3(SafeNormalize(normal, XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f)));
+        outContact.penetration = max(penetration, 0.0f);
+        return true;
+    }
+
+    void ApplyImpulse(const shared_ptr<GameObject>& objA, const shared_ptr<GameObject>& objB, const XMFLOAT3& impulse)
+    {
+        if (objA && objA->GetInverseMass() > 0.0f) objA->AddImpulse(Utiles::Vector3::Mul(impulse, -1.0f));
+        if (objB && objB->GetInverseMass() > 0.0f) objB->AddImpulse(impulse);
+    }
+
+    void ResolveVelocity(const shared_ptr<GameObject>& objA, const shared_ptr<GameObject>& objB, const ContactInfo& contact)
+    {
+        float invMassA = objA->GetInverseMass();
+        float invMassB = objB->GetInverseMass();
+        float invMassSum = invMassA + invMassB;
+        if (invMassSum <= 0.0f) return;
+
+        XMFLOAT3 velA = objA->GetVelocity();
+        XMFLOAT3 velB = objB->GetVelocity();
+        XMFLOAT3 relativeVel = Utiles::Vector3::Sub(velB, velA);
+        float velAlongNormal = Utiles::Vector3::Dot(relativeVel, contact.normal);
+        float normalImpulse = 0.0f;
+
+        if (velAlongNormal < 0.0f)
+        {
+            float restitution = min(objA->GetRestitution(), objB->GetRestitution());
+            if (fabsf(velAlongNormal) < RestingVelocity) restitution = 0.0f;
+
+            normalImpulse = -(1.0f + restitution) * velAlongNormal / invMassSum;
+            ApplyImpulse(objA, objB, Utiles::Vector3::Mul(contact.normal, normalImpulse));
+        }
+
+        if (normalImpulse <= 0.0f) return;
+
+        velA = objA->GetVelocity();
+        velB = objB->GetVelocity();
+        relativeVel = Utiles::Vector3::Sub(velB, velA);
+
+        float normalSpeed = Utiles::Vector3::Dot(relativeVel, contact.normal);
+        XMFLOAT3 tangent = Utiles::Vector3::Sub(relativeVel, Utiles::Vector3::Mul(contact.normal, normalSpeed));
+        float tangentLengthSq = Utiles::Vector3::Dot(tangent, tangent);
+        if (tangentLengthSq <= Epsilon) return;
+
+        tangent = Utiles::Vector3::Mul(tangent, 1.0f / sqrtf(tangentLengthSq));
+        float tangentImpulse = -Utiles::Vector3::Dot(relativeVel, tangent) / invMassSum;
+        float maxFriction = normalImpulse * Friction;
+        tangentImpulse = clamp(tangentImpulse, -maxFriction, maxFriction);
+
+        ApplyImpulse(objA, objB, Utiles::Vector3::Mul(tangent, tangentImpulse));
+    }
+
+    void ApplyPositionCorrection(const shared_ptr<GameObject>& objA, const shared_ptr<GameObject>& objB, const ContactInfo& contact)
+    {
+        float invMassA = objA->GetInverseMass();
+        float invMassB = objB->GetInverseMass();
+        float invMassSum = invMassA + invMassB;
+        if (invMassSum <= 0.0f) return;
+
+        float correctionAmount = max(contact.penetration - ContactSlop, 0.0f) * PositionCorrectionPercent / invMassSum;
+        if (correctionAmount <= 0.0f) return;
+
+        XMFLOAT3 correction = Utiles::Vector3::Mul(contact.normal, correctionAmount);
+        if (invMassA > 0.0f) objA->Transform(Utiles::Vector3::Mul(correction, -invMassA));
+        if (invMassB > 0.0f) objB->Transform(Utiles::Vector3::Mul(correction, invMassB));
+    }
+
+    void MarkGrounded(const shared_ptr<GameObject>& object)
+    {
+        auto rigidbody = object ? object->GetRigidbody() : nullptr;
+        if (!rigidbody) return;
+
+        rigidbody->SetGrounded(true);
+        XMFLOAT3 velocity = rigidbody->GetVelocity();
+        if (velocity.y < 0.0f)
+        {
+            velocity.y = 0.0f;
+            rigidbody->SetVelocity(velocity);
+        }
+    }
+
+    void UpdateGroundedState(const shared_ptr<GameObject>& objA, const shared_ptr<GameObject>& objB, const ContactInfo& contact)
+    {
+        if (objA->GetInverseMass() > 0.0f && contact.normal.y < -0.5f) MarkGrounded(objA);
+        if (objB->GetInverseMass() > 0.0f && contact.normal.y > 0.5f) MarkGrounded(objB);
+    }
+}
 
 void CollisionManager::AddCollider(const shared_ptr<Collider>& collider)
 {
-	if (collider) {
-		m_colliders.push_back(collider);
-	}
+    if (collider) m_colliders.push_back(collider);
 }
 
 void CollisionManager::ClearColliders()
 {
-	m_colliders.clear();
+    m_colliders.clear();
 }
 
-void CollisionManager::Update(const shared_ptr<Player>& player, FLOAT timeElapsed)
+void CollisionManager::Update()
 {
-	for (size_t i = 0; i < m_colliders.size(); ++i) {
-		for (size_t j = i + 1; j < m_colliders.size(); ++j) {
-			auto colA = m_colliders[i];
-			auto colB = m_colliders[j];
-			if (!colA || !colB) continue;
+    for (int iteration = 0; iteration < SolverIterations; ++iteration)
+    {
+        vector<CollisionCandidate> candidates = BuildCollisionCandidates(m_colliders);
 
-			ContactInfo contact;
-			if (CheckCollision(colA, colB, contact)) {
-				auto objA = colA->m_owner.lock();
-				auto objB = colB->m_owner.lock();
-				if (!objA || !objB) continue;
+        for (const auto& candidate : candidates)
+        {
+            ContactInfo contact{};
+            if (!CheckCollision(candidate.colliderA, candidate.colliderB, contact)) continue;
 
-				float invMassA = objA->GetInverseMass();
-				float invMassB = objB->GetInverseMass();
-				float invMassSum = invMassA + invMassB;
+            ResolveVelocity(candidate.ownerA, candidate.ownerB, contact);
+            ApplyPositionCorrection(candidate.ownerA, candidate.ownerB, contact);
+            UpdateGroundedState(candidate.ownerA, candidate.ownerB, contact);
 
-				if (invMassSum > 0.0f) {
+            if (iteration == 0) m_eventQueue.push({ candidate.colliderA, candidate.colliderB });
+        }
+    }
 
-					XMFLOAT3 velA = objA->GetVelocity();
-					XMFLOAT3 velB = objB->GetVelocity();
-					XMFLOAT3 relativeVel = Utiles::Vector3::Sub(velB, velA);
-
-					float velAlongNormal = Utiles::Vector3::Dot(relativeVel, contact.normal);
-
-					float e = min(objA->GetRestitution(), objB->GetRestitution());
-
-					// 바움가르테 안정화 (Baumgarte Stabilization)
-					// 위치 보정을 '물리적인 밀어내기 속도'로 
-					const float baumgarte_slop = 0.01f;
-					const float baumgarte_percent = 0.2f; 
-
-					// 겹친 깊이에 비례한 추가 분리 속도 목표치 (Resting Contact 시 떨림 방지)
-					float bias = max(contact.penetration - baumgarte_slop, 0.0f) * baumgarte_percent / timeElapsed;
-
-					// 만약 밀착 상태(속도가 거의 0인 Resting 상태)면 통통 튀는(Restitution) 것을 무시 
-					if (abs(velAlongNormal) < 0.1f) {
-						e = 0.0f; // 마이크로 바운싱(진동) 방지
-					}
-
-					// 충격량 크기(j) 계산 공식에 Bias(밀어내기 여유분 속도) 합산
-					float j = -(1.0f + e) * velAlongNormal + bias;
-					j /= invMassSum;
-
-					// 밀어내는 방향(Impulse) 도출
-					XMFLOAT3 impulse = Utiles::Vector3::Mul(contact.normal, j);
-
-					// 더 이상 Transform()으로 위치를 억지로 끄집어내지 않고,
-					// 정확한 물리 속도를 가해 자연스럽게 튕겨져 나오게 함
-					if (invMassA > 0.0f) {
-						objA->AddImpulse(Utiles::Vector3::Mul(impulse, -1.0f));
-					}
-					if (invMassB > 0.0f) {
-						objB->AddImpulse(impulse);
-					}
-				}
-
-				m_eventQueue.push({ colA, colB });
-			}
-		}
-	}
-
-
-	ProcessCollisions();
+    ProcessCollisions();
 }
 
 void CollisionManager::ProcessCollisions()
 {
-	while (!m_eventQueue.empty())
-	{
-		const auto& event = m_eventQueue.front();
-		m_eventQueue.pop();
+    while (!m_eventQueue.empty())
+    {
+        const auto& event = m_eventQueue.front();
+        m_eventQueue.pop();
 
-		// 안전하게 weak_ptr(lock)를 사용해 살아있는지 확인 후 로직(콜백) 실행
-		if (auto ownerA = event.colliderA->m_owner.lock()) {
-			ownerA->OnCollisionEnter(event.colliderB);
-		}
-		if (auto ownerB = event.colliderB->m_owner.lock()) {
-			ownerB->OnCollisionEnter(event.colliderA);
-		}
-	}
+        if (auto ownerA = event.colliderA->m_owner.lock()) ownerA->OnCollisionEnter(event.colliderB);
+        if (auto ownerB = event.colliderB->m_owner.lock()) ownerB->OnCollisionEnter(event.colliderA);
+    }
 }
 
-// OBB 충돌 체크 및 방향/깊이 근사 추출
 bool CollisionManager::CheckCollision(const shared_ptr<Collider>& a, const shared_ptr<Collider>& b, ContactInfo& outContact)
 {
-	if (!a || !b) return false;
+    if (!a || !b) return false;
 
-	if (a->GetType() == ColliderType::BOX_TYPE && b->GetType() == ColliderType::BOX_TYPE) {
-		auto boxA = static_pointer_cast<BoxCollider>(a);
-		auto boxB = static_pointer_cast<BoxCollider>(b);
+    if (a->GetType() == ColliderType::Box && b->GetType() == ColliderType::Box)
+    {
+        auto boxA = static_pointer_cast<BoxCollider>(a);
+        auto boxB = static_pointer_cast<BoxCollider>(b);
+        return ComputeOBBOBBContact(boxA->GetWorldOBB(), boxB->GetWorldOBB(), outContact);
+    }
 
-		const auto& obbA = boxA->GetWorldOBB();
-		const auto& obbB = boxB->GetWorldOBB();
+    bool isACapsule = a->GetType() == ColliderType::Capsule;
+    bool isBCapsule = b->GetType() == ColliderType::Capsule;
 
-		if (obbA.Intersects(obbB)) {
-			// Center 기준 거리 계산
-			XMFLOAT3 delta = Utiles::Vector3::Sub(obbB.Center, obbA.Center);
+    if ((isACapsule && b->GetType() == ColliderType::Box) ||
+        (a->GetType() == ColliderType::Box && isBCapsule))
+    {
+        auto capsule = static_pointer_cast<CapsuleCollider>(isACapsule ? a : b);
+        auto box = static_pointer_cast<BoxCollider>(isACapsule ? b : a);
 
-			// 각 축(X, Y, Z)별로 겹친 깊이구하기
-			float overlapX = (obbA.Extents.x + obbB.Extents.x) - abs(delta.x);
-			float overlapY = (obbA.Extents.y + obbB.Extents.y) - abs(delta.y);
-			float overlapZ = (obbA.Extents.z + obbB.Extents.z) - abs(delta.z);
+        ContactInfo capsuleContact{};
+        if (!ComputeCapsuleOBBContact(*capsule, box->GetWorldOBB(), capsuleContact)) return false;
 
-			// 세 축 중 '가장 조금 겹친 축'이 실제 충돌이 발생한 면(Face)
-			if (overlapX < overlapY && overlapX < overlapZ) {
-				outContact.normal = delta.x > 0 ? XMFLOAT3(1, 0, 0) : XMFLOAT3(-1, 0, 0);
-				outContact.penetration = overlapX;
-			}
-			else if (overlapY < overlapX && overlapY < overlapZ) {
-				outContact.normal = delta.y > 0 ? XMFLOAT3(0, 1, 0) : XMFLOAT3(0, -1, 0);
-				outContact.penetration = overlapY;
-			}
-			else {
-				outContact.normal = delta.z > 0 ? XMFLOAT3(0, 0, 1) : XMFLOAT3(0, 0, -1);
-				outContact.penetration = overlapZ;
-			}
+        outContact.normal = isACapsule ? capsuleContact.normal : Utiles::Vector3::Mul(capsuleContact.normal, -1.0f);
+        outContact.penetration = capsuleContact.penetration;
+        return true;
+    }
 
-			// 안전 장치: 거리가 완벽히 0히면 임의로 위로 튕겨줌
-			if (outContact.penetration <= 0.0f) {
-				outContact.normal = XMFLOAT3(0, 1, 0);
-				outContact.penetration = 0.01f;
-			}
-
-			return true;
-		}
-	}
-	return false;
+    return false;
 }
 
 bool CollisionManager::Raycast(const XMFLOAT3& origin, const XMFLOAT3& direction, float& outHitDist, const shared_ptr<Collider>& ignoreCollider) const
 {
-	bool isHit = false;
-	float minHitDist = FLT_MAX;
+    bool isHit = false;
+    float minHitDist = FLT_MAX;
 
-	for (const auto& collider : m_colliders)
-	{
-		if (!collider || collider == ignoreCollider) continue;
+    for (const auto& collider : m_colliders)
+    {
+        if (!collider || collider == ignoreCollider) continue;
 
-		float hitDist = 0.0f;
-		if (collider->Raycast(origin, direction, hitDist))
-		{
-			if (hitDist < minHitDist)
-			{
-				minHitDist = hitDist;
-				isHit = true;
-			}
-		}
-	}
+        float hitDist = 0.0f;
+        if (collider->Raycast(origin, direction, hitDist) && hitDist < minHitDist)
+        {
+            minHitDist = hitDist;
+            isHit = true;
+        }
+    }
 
-	if (isHit)
-	{
-		outHitDist = minHitDist;
-	}
-
-	return isHit;
+    if (isHit) outHitDist = minHitDist;
+    return isHit;
 }
