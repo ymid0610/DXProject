@@ -118,3 +118,23 @@ private:
 
 	XMFLOAT3 m_offset;  // 캐릭터의 발바닥이 아닌 상체(머리/어깨)를 찍기 위한 오프셋
 };
+
+class SpectatorCamera : public Camera
+{
+public:
+	SpectatorCamera();
+	~SpectatorCamera() = default;
+
+	void Update(FLOAT timeElapsed) override;
+	void UpdateEye(XMFLOAT3 position) override;
+
+	void RotatePitch(FLOAT radian) override;
+	void RotateYaw(FLOAT radian) override;
+
+	void SetPose(const XMFLOAT3& eye, const XMFLOAT3& forward);
+	void Move(const XMFLOAT3& displacement);
+
+private:
+	FLOAT m_pitch;
+	FLOAT m_yaw;
+};

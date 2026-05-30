@@ -19,4 +19,10 @@ namespace Settings
     constexpr FLOAT CapsuleHeight = 1.0f;
 
     constexpr FLOAT PlayerSpeed = 5.f;
+    constexpr FLOAT BulletSpeed = 38.0f;
+    constexpr FLOAT BulletLifetime = 2.0f;
+    constexpr FLOAT BulletRadius = 0.06f;
+    constexpr size_t MaxBullets = 128;
+    constexpr FLOAT DebugCameraSpeed = 14.0f;
+    constexpr FLOAT DebugCameraFastMultiplier = 3.0f;
 }

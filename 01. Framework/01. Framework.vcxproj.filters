@@ -114,8 +114,11 @@
     <ClInclude Include="physicsmanager.h">
       <Filter>헤더 파일\Collider</Filter>
     </ClInclude>
-    <ClInclude Include="lightcomponent.h">
+    <ClInclude Include="light.h">
       <Filter>헤더 파일\System</Filter>
+    </ClInclude>
+    <ClInclude Include="bullet.h">
+      <Filter>헤더 파일\Object</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -167,8 +170,11 @@
     <ClCompile Include="physicsmanager.cpp">
       <Filter>소스 파일\Collider</Filter>
     </ClCompile>
-    <ClCompile Include="lightcomponent.cpp">
+    <ClCompile Include="light.cpp">
       <Filter>소스 파일\System</Filter>
+    </ClCompile>
+    <ClCompile Include="bullet.cpp">
+      <Filter>소스 파일\Object</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

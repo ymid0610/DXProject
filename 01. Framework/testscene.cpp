@@ -23,6 +23,7 @@ void TestScene::BuildObjects(const ComPtr<ID3D12Device>& device,
     m_capsuleMesh = make_shared<CapsuleIndexMesh>(device, commandList, Settings::CapsuleRadius, Settings::CapsuleHeight, 32);
     m_firstPersonGunMesh = make_shared<FirstPersonGunMesh>(device, commandList);
     m_crosshairMesh = make_shared<CrosshairMesh>(device, commandList);
+    m_bulletMesh = make_shared<BulletMesh>(device, commandList);
 
     m_firstPersonGun = make_shared<GameObject>();
     m_firstPersonGun->SetMesh(m_firstPersonGunMesh);

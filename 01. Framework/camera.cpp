@@ -195,3 +195,59 @@ void SpringArmCamera::SetCollisionDistance(float distance)
 	m_eye = Utiles::Vector3::Add(m_at, offset);
 	UpdateBasis(); // 방향 갱신
 }
+
+//
+///////////////////////////////////////////////////////////////////////////////
+SpectatorCamera::SpectatorCamera() : Camera{},
+	m_pitch{ 0.0f },
+	m_yaw{ Settings::DefaultCameraYaw }
+{
+	UpdateEye(m_eye);
+}
+
+void SpectatorCamera::Update(FLOAT timeElapsed)
+{
+	(void)timeElapsed;
+}
+
+void SpectatorCamera::UpdateEye(XMFLOAT3 position)
+{
+	(void)position;
+
+	XMFLOAT3 lookDirection{
+		sinf(m_yaw) * cosf(m_pitch),
+		sinf(m_pitch),
+		cosf(m_yaw) * cosf(m_pitch)
+	};
+
+	m_at = Utiles::Vector3::Add(m_eye, Utiles::Vector3::Normalize(lookDirection));
+	UpdateBasis();
+}
+
+void SpectatorCamera::RotatePitch(FLOAT radian)
+{
+	m_pitch += radian;
+	m_pitch = clamp(m_pitch, Settings::FirstPersonMinPitch, Settings::FirstPersonMaxPitch);
+	UpdateEye(m_eye);
+}
+
+void SpectatorCamera::RotateYaw(FLOAT radian)
+{
+	m_yaw -= radian;
+	UpdateEye(m_eye);
+}
+
+void SpectatorCamera::SetPose(const XMFLOAT3& eye, const XMFLOAT3& forward)
+{
+	XMFLOAT3 direction = Utiles::Vector3::Normalize(forward);
+	m_eye = eye;
+	m_pitch = asinf(clamp(direction.y, -1.0f, 1.0f));
+	m_yaw = atan2f(direction.x, direction.z);
+	UpdateEye(m_eye);
+}
+
+void SpectatorCamera::Move(const XMFLOAT3& displacement)
+{
+	m_eye = Utiles::Vector3::Add(m_eye, displacement);
+	UpdateEye(m_eye);
+}

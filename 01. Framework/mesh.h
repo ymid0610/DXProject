@@ -130,3 +130,18 @@ public:
 	CrosshairMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
 	~CrosshairMesh() = default;
 };
+
+class BulletMesh : public Mesh
+{
+private:
+	struct Vertex
+	{
+		XMFLOAT3 position;
+		XMFLOAT3 normal;
+		XMFLOAT4 colors;
+	};
+
+public:
+	BulletMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList);
+	~BulletMesh() = default;
+};

@@ -38,6 +38,7 @@ void Scene::Update(FLOAT timeElapsed)
     if (m_physicsManager) m_physicsManager->Update(timeElapsed);
     if (m_collisionManager) m_collisionManager->Update();
     if (m_camera && m_player) m_camera->UpdateEye(m_player->GetPosition());
+    UpdateBullets(timeElapsed);
     UpdateFlashlight();
 }
 
@@ -59,7 +60,7 @@ void Scene::UpdateSpringCamera()
 
 void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
 {
-    if (!m_camera || !m_player) return;
+    if (!m_camera) return;
 
     SetCursor(NULL);
 
@@ -77,22 +78,31 @@ void Scene::MouseEvent(HWND hWnd, FLOAT timeElapsed)
     float dx = XMConvertToRadians(0.15f * static_cast<FLOAT>(center.x - mousePosition.x));
     float dy = XMConvertToRadians(0.15f * static_cast<FLOAT>(center.y - mousePosition.y));
 
-    auto springCamera = dynamic_pointer_cast<SpringArmCamera>(m_camera);
-    if (m_camera->IsFirstPerson() || (springCamera && springCamera->GetArmLength() <= 1.0f))
+    if (!m_debugCameraEnabled && m_player)
     {
-        m_player->Rotate(0.0f, XMConvertToDegrees(-dx), 0.0f);
+        auto springCamera = dynamic_pointer_cast<SpringArmCamera>(m_camera);
+        if (m_camera->IsFirstPerson() || (springCamera && springCamera->GetArmLength() <= 1.0f))
+        {
+            m_player->Rotate(0.0f, XMConvertToDegrees(-dx), 0.0f);
+        }
     }
 
     m_camera->RotateYaw(dx);
     m_camera->RotatePitch(dy);
     SetCursorPos(center.x, center.y);
 
-    m_player->MouseEvent(timeElapsed, 0);
+    if (!m_debugCameraEnabled && m_player) m_player->MouseEvent(timeElapsed, 0);
 }
 
 void Scene::KeyboardEvent(FLOAT timeElapsed)
 {
     HandleSceneShortcuts();
+    if (m_debugCameraEnabled)
+    {
+        UpdateDebugCamera(timeElapsed);
+        return;
+    }
+
     if (m_player) m_player->KeyboardEvent(timeElapsed);
 }
 
@@ -100,12 +110,17 @@ void Scene::HandleSceneShortcuts()
 {
     bool flashlightKeyDown = (GetAsyncKeyState('F') & 0x8000) != 0;
     bool cameraToggleKeyDown = (GetAsyncKeyState('V') & 0x8000) != 0;
+    bool debugCameraKeyDown = (GetAsyncKeyState('B') & 0x8000) != 0;
 
     if (flashlightKeyDown && !m_flashlightKeyDown) ToggleFlashlight();
-    if (cameraToggleKeyDown && !m_cameraToggleKeyDown) ToggleCameraMode();
+    if (cameraToggleKeyDown && !m_cameraToggleKeyDown && !m_debugCameraEnabled) ToggleCameraMode();
+    if (debugCameraKeyDown && !m_debugCameraKeyDown) ToggleDebugCamera();
+    if (!m_debugCameraEnabled) HandleFireInput();
+    else m_fireKeyDown = false;
 
     m_flashlightKeyDown = flashlightKeyDown;
     m_cameraToggleKeyDown = cameraToggleKeyDown;
+    m_debugCameraKeyDown = debugCameraKeyDown;
 }
 
 void Scene::ToggleFlashlight()
@@ -115,7 +130,7 @@ void Scene::ToggleFlashlight()
 
 void Scene::ToggleCameraMode()
 {
-    if (!m_camera) return;
+    if (!m_camera || m_debugCameraEnabled) return;
 
     SetActiveCamera(m_camera->IsFirstPerson() ? CreateThirdPersonCamera() : CreateFirstPersonCamera());
 }
@@ -151,12 +166,142 @@ void Scene::ConfigureCameraLens(const shared_ptr<Camera>& camera) const
     camera->SetLens(0.25f * XM_PI, g_framework->GetAspectRatio(), 0.1f, 1000.0f);
 }
 
+void Scene::ToggleDebugCamera()
+{
+    if (m_debugCameraEnabled)
+    {
+        m_debugCameraEnabled = false;
+        SetActiveCamera(m_savedGameplayCamera ? m_savedGameplayCamera : CreateFirstPersonCamera());
+        m_savedGameplayCamera.reset();
+        return;
+    }
+
+    if (!m_camera) return;
+
+    m_savedGameplayCamera = m_camera;
+    auto spectatorCamera = make_shared<SpectatorCamera>();
+    ConfigureCameraLens(spectatorCamera);
+    spectatorCamera->SetPose(m_camera->GetEye(), m_camera->GetN());
+    m_camera = spectatorCamera;
+    m_debugCameraEnabled = true;
+}
+
+void Scene::UpdateDebugCamera(FLOAT timeElapsed)
+{
+    auto spectatorCamera = dynamic_pointer_cast<SpectatorCamera>(m_camera);
+    if (!spectatorCamera) return;
+
+    XMFLOAT3 move{ 0.0f, 0.0f, 0.0f };
+    const XMFLOAT3 forward = m_camera->GetN();
+    const XMFLOAT3 right = m_camera->GetU();
+    const XMFLOAT3 up{ 0.0f, 1.0f, 0.0f };
+
+    if (GetAsyncKeyState('W') & 0x8000) move = Utiles::Vector3::Add(move, forward);
+    if (GetAsyncKeyState('S') & 0x8000) move = Utiles::Vector3::Sub(move, forward);
+    if (GetAsyncKeyState('D') & 0x8000) move = Utiles::Vector3::Add(move, right);
+    if (GetAsyncKeyState('A') & 0x8000) move = Utiles::Vector3::Sub(move, right);
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000) move = Utiles::Vector3::Add(move, up);
+    if (GetAsyncKeyState(VK_CONTROL) & 0x8000) move = Utiles::Vector3::Sub(move, up);
+
+    float lengthSq = Utiles::Vector3::Dot(move, move);
+    if (lengthSq <= Utiles::Physics::Epsilon) return;
+
+    float speed = Settings::DebugCameraSpeed;
+    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) speed *= Settings::DebugCameraFastMultiplier;
+
+    move = Utiles::Vector3::Mul(Utiles::Vector3::Normalize(move), speed * timeElapsed);
+    spectatorCamera->Move(move);
+}
+
+void Scene::HandleFireInput()
+{
+    bool fireKeyDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+    if (fireKeyDown && !m_fireKeyDown) FireBullet();
+    m_fireKeyDown = fireKeyDown;
+}
+
+void Scene::FireBullet()
+{
+    if (!m_bulletMesh || !m_player) return;
+
+    XMFLOAT3 direction = GetBulletDirection();
+    XMFLOAT3 spawnPosition = GetBulletSpawnPosition(direction);
+
+    if (m_bullets.size() >= Settings::MaxBullets)
+    {
+        m_bullets.erase(m_bullets.begin());
+    }
+
+    m_bullets.push_back(make_shared<Bullet>(
+        m_bulletMesh,
+        spawnPosition,
+        direction,
+        Settings::BulletSpeed,
+        Settings::BulletLifetime));
+}
+
+void Scene::UpdateBullets(FLOAT timeElapsed)
+{
+    const auto playerCollider = m_player ? m_player->GetCollider() : nullptr;
+
+    for (const auto& bullet : m_bullets)
+    {
+        if (!bullet || bullet->IsExpired()) continue;
+
+        bullet->Update(timeElapsed);
+
+        if (!m_collisionManager) continue;
+
+        float hitDistance = 0.0f;
+        bool hit = m_collisionManager->Raycast(
+            bullet->GetPreviousPosition(),
+            bullet->GetDirection(),
+            hitDistance,
+            playerCollider);
+
+        if (hit && hitDistance <= bullet->GetLastTravelDistance() + Settings::BulletRadius)
+        {
+            bullet->MarkExpired();
+        }
+    }
+
+    erase_if(m_bullets, [](const shared_ptr<Bullet>& bullet)
+        {
+            return !bullet || bullet->IsExpired();
+        });
+}
+
 void Scene::UpdateFlashlight()
 {
     if (!m_flashlight) return;
 
     m_flashlight->SetPosition(GetFlashlightPosition());
     m_flashlight->SetDirection(GetFlashlightDirection());
+}
+
+XMFLOAT3 Scene::GetBulletSpawnPosition(const XMFLOAT3& direction) const
+{
+    if (m_camera && m_camera->IsFirstPerson())
+    {
+        return Utiles::Vector3::Add(m_camera->GetEye(), Utiles::Vector3::Mul(direction, 0.65f));
+    }
+
+    if (m_player)
+    {
+        XMFLOAT3 eyePosition = Utiles::Vector3::Add(
+            m_player->GetPosition(),
+            XMFLOAT3{ 0.0f, Settings::FirstPersonEyeHeight * 0.65f, 0.0f });
+        return Utiles::Vector3::Add(eyePosition, Utiles::Vector3::Mul(direction, Settings::CapsuleRadius + 0.35f));
+    }
+
+    return XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+}
+
+XMFLOAT3 Scene::GetBulletDirection() const
+{
+    if (m_camera && m_camera->IsFirstPerson()) return m_camera->GetN();
+    if (m_player) return Utiles::Vector3::Normalize(m_player->GetFront());
+    return m_camera ? m_camera->GetN() : XMFLOAT3{ 0.0f, 0.0f, 1.0f };
 }
 
 XMFLOAT3 Scene::GetFlashlightPosition() const
@@ -217,6 +362,11 @@ void Scene::Render(const ComPtr<ID3D12GraphicsCommandList>& commandList) const
         if (object) object->Render(commandList);
     }
 
+    for (const auto& bullet : m_bullets)
+    {
+        if (bullet) bullet->Render(commandList);
+    }
+
     const bool isFirstPerson = m_camera && m_camera->IsFirstPerson();
     if (m_player && !isFirstPerson) m_player->Render(commandList);
     if (isFirstPerson) RenderFirstPersonOverlay(commandList);
@@ -256,14 +406,17 @@ void Scene::ReleaseObjects()
     m_objects.clear();
     m_player.reset();
     m_camera.reset();
+    m_savedGameplayCamera.reset();
     m_shader.reset();
     m_overlayShader.reset();
     m_cube.reset();
     m_capsuleMesh.reset();
     m_firstPersonGunMesh.reset();
     m_crosshairMesh.reset();
+    m_bulletMesh.reset();
     m_firstPersonGun.reset();
     m_crosshair.reset();
+    m_bullets.clear();
     m_collisionManager.reset();
     m_physicsManager.reset();
     m_lights.clear();
@@ -277,4 +430,5 @@ void Scene::ReleaseUploadBuffer()
     if (m_capsuleMesh) m_capsuleMesh->ReleaseUploadBuffer();
     if (m_firstPersonGunMesh) m_firstPersonGunMesh->ReleaseUploadBuffer();
     if (m_crosshairMesh) m_crosshairMesh->ReleaseUploadBuffer();
+    if (m_bulletMesh) m_bulletMesh->ReleaseUploadBuffer();
 }

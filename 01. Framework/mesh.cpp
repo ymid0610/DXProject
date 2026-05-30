@@ -402,3 +402,44 @@ CrosshairMesh::CrosshairMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID
     CreateBoundingBox(vertices.data(), m_vertices, sizeof(Vertex));
     CreateVertexBuffer(device, commandList, vertices, m_vertexBuffer, m_vertexUploadBuffer, m_vertexBufferView);
 }
+
+BulletMesh::BulletMesh(const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12GraphicsCommandList>& commandList)
+{
+    vector<Vertex> vertices;
+    vertices.reserve(36);
+
+    const XMFLOAT4 color{ 1.0f, 0.82f, 0.22f, 1.0f };
+    const XMFLOAT3 minCorner{ -0.035f, -0.035f, -0.10f };
+    const XMFLOAT3 maxCorner{ 0.035f, 0.035f, 0.24f };
+
+    XMFLOAT3 ldf{ minCorner.x, minCorner.y, minCorner.z };
+    XMFLOAT3 ldb{ minCorner.x, minCorner.y, maxCorner.z };
+    XMFLOAT3 luf{ minCorner.x, maxCorner.y, minCorner.z };
+    XMFLOAT3 lub{ minCorner.x, maxCorner.y, maxCorner.z };
+    XMFLOAT3 rdf{ maxCorner.x, minCorner.y, minCorner.z };
+    XMFLOAT3 rdb{ maxCorner.x, minCorner.y, maxCorner.z };
+    XMFLOAT3 ruf{ maxCorner.x, maxCorner.y, minCorner.z };
+    XMFLOAT3 rub{ maxCorner.x, maxCorner.y, maxCorner.z };
+
+    auto addFace = [&vertices, color](const XMFLOAT3& a, const XMFLOAT3& b,
+        const XMFLOAT3& c, const XMFLOAT3& d, XMFLOAT3 normal)
+    {
+        vertices.push_back({ a, normal, color });
+        vertices.push_back({ b, normal, color });
+        vertices.push_back({ c, normal, color });
+        vertices.push_back({ a, normal, color });
+        vertices.push_back({ c, normal, color });
+        vertices.push_back({ d, normal, color });
+    };
+
+    addFace(luf, ruf, rdf, ldf, { 0.0f, 0.0f, -1.0f });
+    addFace(lub, rub, ruf, luf, { 0.0f, 1.0f, 0.0f });
+    addFace(ldb, rdb, rub, lub, { 0.0f, 0.0f, 1.0f });
+    addFace(ldf, rdf, rdb, ldb, { 0.0f, -1.0f, 0.0f });
+    addFace(lub, luf, ldf, ldb, { -1.0f, 0.0f, 0.0f });
+    addFace(ruf, rub, rdb, rdf, { 1.0f, 0.0f, 0.0f });
+
+    m_vertices = static_cast<UINT>(vertices.size());
+    CreateBoundingBox(vertices.data(), m_vertices, sizeof(Vertex));
+    CreateVertexBuffer(device, commandList, vertices, m_vertexBuffer, m_vertexUploadBuffer, m_vertexBufferView);
+}
